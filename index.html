@@ -37,7 +37,6 @@
             display: flex;
         }
 
-        /* ===== SIDEBAR ===== */
         .sidebar {
             width: 280px;
             background: var(--bg-secondary);
@@ -168,7 +167,6 @@
             border-color: var(--accent);
         }
 
-        /* ===== MAIN AREA ===== */
         .main {
             flex: 1;
             display: flex;
@@ -237,7 +235,6 @@
             border-color: var(--accent);
         }
 
-        /* ===== CHAT AREA ===== */
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -308,7 +305,6 @@
             font-weight: 500;
         }
 
-        /* Messages */
         .messages {
             display: flex;
             flex-direction: column;
@@ -430,7 +426,6 @@
 
         .copy-btn:hover { color: var(--accent); background: var(--bg-hover); }
 
-        /* Typing indicator */
         .typing-indicator {
             display: flex;
             gap: 6px;
@@ -453,7 +448,6 @@
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* ===== INPUT AREA ===== */
         .input-area {
             padding: 16px 24px 24px;
             background: var(--bg-primary);
@@ -527,7 +521,6 @@
             color: var(--text-muted);
         }
 
-        /* ===== MODAL ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -639,25 +632,6 @@
         .setting-group input::placeholder,
         .setting-group textarea::placeholder { color: var(--text-muted); }
 
-        .api-key-input {
-            position: relative;
-        }
-
-        .api-key-input input { padding-right: 44px; }
-
-        .toggle-visibility {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 4px;
-        }
-
         .api-status {
             display: inline-flex;
             align-items: center;
@@ -745,7 +719,6 @@
             box-shadow: 0 4px 16px var(--accent-glow);
         }
 
-        /* Toast */
         .toast-container {
             position: fixed;
             bottom: 24px;
@@ -778,7 +751,6 @@
         .toast.error { border-left: 3px solid var(--error); }
         .toast.info { border-left: 3px solid var(--accent); }
 
-        /* Mobile menu toggle */
         .mobile-toggle {
             display: none;
             position: fixed;
@@ -796,7 +768,6 @@
             box-shadow: var(--shadow);
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -814,13 +785,11 @@
             .quick-actions { grid-template-columns: 1fr; }
         }
 
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
 
-        /* Markdown-like styling in messages */
         .message-content h1, .message-content h2, .message-content h3 {
             margin: 16px 0 10px;
             color: var(--text-primary);
@@ -849,12 +818,25 @@
             background: var(--bg-tertiary);
             font-weight: 600;
         }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+        }
+        .connection-status.connected { color: var(--success); border-color: rgba(34,197,94,0.3); }
+        .connection-status.disconnected { color: var(--error); border-color: rgba(239,68,68,0.3); }
+        .connection-status.connecting { color: var(--warning); border-color: rgba(245,158,11,0.3); }
     </style>
 <base target="_blank">
 </head>
 <body>
 
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo">
@@ -876,28 +858,33 @@
         </div>
     </aside>
 
-    <!-- Main Area -->
     <main class="main">
         <div class="top-bar">
-            <div class="model-selector">
-                <label>🧠 Model:</label>
-                <select id="modelSelect" onchange="changeModel()">
-                    <option value="openai:gpt-4o-mini">OpenAI - GPT-4o Mini</option>
-                    <option value="openai:gpt-4o">OpenAI - GPT-4o</option>
-                    <option value="gemini:gemini-1.5-flash">Google - Gemini 1.5 Flash</option>
-                    <option value="gemini:gemini-1.5-pro">Google - Gemini 1.5 Pro</option>
-                    <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
-                    <option value="bigmodel:glm-4">BigModel - GLM-4</option>
-                    <option value="bigmodel:glm-4-plus">BigModel - GLM-4 Plus</option>
-                    <option value="deepseek:deepseek-chat">DeepSeek - Chat</option>
-                    <option value="deepseek:deepseek-reasoner">DeepSeek - Reasoner</option>
-                    <option value="groq:llama-3.1-8b-instant">Groq - Llama 3.1 8B</option>
-                    <option value="groq:llama-3.3-70b-versatile">Groq - Llama 3.3 70B</option>
-                    <option value="groq:mixtral-8x7b-32768">Groq - Mixtral 8x7B</option>
-                </select>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <div class="model-selector">
+                    <label>🧠 Model:</label>
+                    <select id="modelSelect" onchange="changeModel()">
+                        <option value="openai:gpt-4o-mini">OpenAI - GPT-4o Mini</option>
+                        <option value="openai:gpt-4o">OpenAI - GPT-4o</option>
+                        <option value="gemini:gemini-1.5-flash">Google - Gemini 1.5 Flash</option>
+                        <option value="gemini:gemini-1.5-pro">Google - Gemini 1.5 Pro</option>
+                        <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
+                        <option value="bigmodel:glm-4">BigModel - GLM-4</option>
+                        <option value="bigmodel:glm-4-plus">BigModel - GLM-4 Plus</option>
+                        <option value="deepseek:deepseek-chat">DeepSeek - Chat</option>
+                        <option value="deepseek:deepseek-reasoner">DeepSeek - Reasoner</option>
+                        <option value="groq:llama-3.1-8b-instant">Groq - Llama 3.1 8B</option>
+                        <option value="groq:llama-3.3-70b-versatile">Groq - Llama 3.3 70B</option>
+                        <option value="groq:mixtral-8x7b-32768">Groq - Mixtral 8x7B</option>
+                    </select>
+                </div>
+                <div class="connection-status connecting" id="connStatus">
+                    <span id="connDot">🟡</span>
+                    <span id="connText">Checking...</span>
+                </div>
             </div>
             <div class="top-actions">
-                <button class="icon-btn" onclick="openSettings()" title="API Keys">🔑</button>
+                <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
                 <button class="icon-btn" onclick="exportChat()" title="Export">💾</button>
             </div>
         </div>
@@ -905,7 +892,7 @@
         <div class="chat-container" id="chatContainer">
             <div class="welcome-screen" id="welcomeScreen">
                 <h1>🤖 Multi-AI Chatbot</h1>
-                <p>Use multiple AI models in one place. Save your API keys in Settings and start chatting. Everything stays in your browser — no server, no data leaks.</p>
+                <p>Use multiple AI models in one place. Connect to your backend server and start chatting. API keys are stored securely on the server — never in the browser.</p>
                 <div class="quick-actions">
                     <div class="quick-action" onclick="sendQuick('Write a short poem about technology')">
                         <div class="qa-icon">✍️</div>
@@ -935,113 +922,49 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
             </div>
-            <div class="input-hint">Save API keys in Settings | All data stored in localStorage | GitHub Pages ready</div>
+            <div class="input-hint">Connected to Render backend | Chat history stored locally | No API keys in browser</div>
         </div>
     </main>
 
     <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
 
-    <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
             <div class="modal-header">
-                <h2>⚙️ API Key Settings</h2>
+                <h2>⚙️ Settings</h2>
                 <button class="modal-close" onclick="closeSettings()">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; line-height: 1.6;">
-                    🔒 <strong>Security Note:</strong> Your API keys are stored only in your browser's localStorage. They are never sent to any server. Even when hosted on GitHub Pages, no one else can see your keys (only your browser can access them).
+                    🔒 <strong>Secure Setup:</strong> API keys are stored on your backend server, not in the browser. The frontend only needs the backend URL.
                 </p>
 
-                <!-- OpenAI -->
-                <div class="provider-section">
-                    <div class="provider-header">
-                        <div class="provider-icon" style="background: rgba(16,163,127,0.15);">🅾️</div>
-                        <span class="provider-name">OpenAI</span>
-                        <span class="provider-badge badge-paid">Paid</span>
+                <div class="setting-group">
+                    <label>Backend Server</label>
+                    <div class="setting-desc">Connected to your Render proxy server</div>
+                    <div style="padding: 12px 14px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 0.9rem; font-family: monospace;">
+                        https://multi-ai-chat-1.onrender.com
                     </div>
-                    <div class="setting-group">
-                        <label>OpenAI API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="key-openai" placeholder="sk-...">
-                            <button class="toggle-visibility" onclick="toggleVisibility('key-openai')">👁️</button>
-                        </div>
-                        <div class="api-status" id="status-openai"><span>⚪</span> No key saved</div>
-                    </div>
-                </div>
-
-                <!-- Google Gemini -->
-                <div class="provider-section">
-                    <div class="provider-header">
-                        <div class="provider-icon" style="background: rgba(66,133,244,0.15);">🔷</div>
-                        <span class="provider-name">Google Gemini</span>
-                        <span class="provider-badge badge-free">Free Tier</span>
-                    </div>
-                    <div class="setting-group">
-                        <label>Gemini API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="key-gemini" placeholder="AIzaSy...">
-                            <button class="toggle-visibility" onclick="toggleVisibility('key-gemini')">👁️</button>
-                        </div>
-                        <div class="api-status" id="status-gemini"><span>⚪</span> No key saved</div>
-                    </div>
-                </div>
-
-                <!-- BigModel -->
-                <div class="provider-section">
-                    <div class="provider-header">
-                        <div class="provider-icon" style="background: rgba(239,68,68,0.15);">🇨🇳</div>
-                        <span class="provider-name">BigModel (Zhipu AI)</span>
-                        <span class="provider-badge badge-free">Free Credits</span>
-                    </div>
-                    <div class="setting-group">
-                        <label>BigModel API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="key-bigmodel" placeholder="...">
-                            <button class="toggle-visibility" onclick="toggleVisibility('key-bigmodel')">👁️</button>
-                        </div>
-                        <div class="api-status" id="status-bigmodel"><span>⚪</span> No key saved</div>
-                    </div>
-                </div>
-
-                <!-- DeepSeek -->
-                <div class="provider-section">
-                    <div class="provider-header">
-                        <div class="provider-icon" style="background: rgba(59,130,246,0.15);">🔍</div>
-                        <span class="provider-name">DeepSeek</span>
-                        <span class="provider-badge badge-paid">Paid</span>
-                    </div>
-                    <div class="setting-group">
-                        <label>DeepSeek API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="key-deepseek" placeholder="sk-...">
-                            <button class="toggle-visibility" onclick="toggleVisibility('key-deepseek')">👁️</button>
-                        </div>
-                        <div class="api-status" id="status-deepseek"><span>⚪</span> No key saved</div>
-                    </div>
-                </div>
-
-                <!-- Groq -->
-                <div class="provider-section">
-                    <div class="provider-header">
-                        <div class="provider-icon" style="background: rgba(245,158,11,0.15);">⚡</div>
-                        <span class="provider-name">Groq</span>
-                        <span class="provider-badge badge-free">Free Tier</span>
-                    </div>
-                    <div class="setting-group">
-                        <label>Groq API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="key-groq" placeholder="gsk_...">
-                            <button class="toggle-visibility" onclick="toggleVisibility('key-groq')">👁️</button>
-                        </div>
-                        <div class="api-status" id="status-groq"><span>⚪</span> No key saved</div>
-                    </div>
+                    <div class="api-status saved" id="backendStatus"><span>🟢</span> Connected</div>
                 </div>
 
                 <div class="setting-group" style="margin-top: 24px;">
                     <label>System Prompt (Bot Personality)</label>
-                    <div class="setting-desc">Define how the bot behaves, what language it speaks, and its rules</div>
+                    <div class="setting-desc">Define how the bot behaves and responds</div>
                     <textarea id="systemPrompt" rows="4" placeholder="You are a helpful AI assistant.">You are a helpful AI assistant.</textarea>
+                </div>
+
+                <div class="provider-section" style="margin-top: 24px;">
+                    <div class="provider-header">
+                        <div class="provider-icon" style="background: rgba(99,102,241,0.15);">ℹ️</div>
+                        <span class="provider-name">How it works</span>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.7;">
+                        <p style="margin-bottom: 8px;">1. Deploy the backend server (<code>server.js</code>) to Render, Railway, or any VPS</p>
+                        <p style="margin-bottom: 8px;">2. Add your API keys as environment variables on the server</p>
+                        <p style="margin-bottom: 8px;">3. Paste the server URL above and save</p>
+                        <p>4. The frontend sends requests to your server, which forwards them to AI providers using the secure keys</p>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1051,100 +974,19 @@
         </div>
     </div>
 
-    <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ===== CONFIGURATION =====
-        // Set to true to use the proxy server (requires running server.js)
-        // Set to false to make direct API calls from the browser
-        const USE_PROXY = false;
-        const PROXY_URL = 'http://localhost:3000';
-
-        // ===== STATE =====
         let currentChatId = null;
         let chats = JSON.parse(localStorage.getItem('chats') || '{}');
-        let apiKeys = JSON.parse(localStorage.getItem('apiKeys') || '{}');
+        let backendUrl = 'https://multi-ai-chat-1.onrender.com';
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
         let isGenerating = false;
 
-        // ===== PROVIDER CONFIGS =====
-        const PROVIDERS = {
-            openai: {
-                baseUrl: 'https://api.openai.com/v1/chat/completions',
-                headers: (key) => ({ 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }),
-                body: (messages, model) => ({ model, messages, stream: true }),
-                parseStream: (line) => {
-                    const data = line.replace('data: ', '');
-                    if (data === '[DONE]') return null;
-                    try {
-                        const json = JSON.parse(data);
-                        return json.choices?.[0]?.delta?.content || '';
-                    } catch { return ''; }
-                }
-            },
-            gemini: {
-                baseUrl: (model, key) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${key}`,
-                headers: () => ({ 'Content-Type': 'application/json' }),
-                body: (messages) => {
-                    const history = messages.map(m => ({
-                        role: m.role === 'user' ? 'user' : 'model',
-                        parts: [{ text: m.content }]
-                    }));
-                    return { contents: history };
-                },
-                parseStream: (line) => {
-                    try {
-                        const json = JSON.parse(line.replace('data: ', ''));
-                        return json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                    } catch { return ''; }
-                }
-            },
-            bigmodel: {
-                baseUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-                headers: (key) => ({ 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }),
-                body: (messages, model) => ({ model, messages, stream: true }),
-                parseStream: (line) => {
-                    const data = line.replace('data: ', '');
-                    if (data === '[DONE]') return null;
-                    try {
-                        const json = JSON.parse(data);
-                        return json.choices?.[0]?.delta?.content || '';
-                    } catch { return ''; }
-                }
-            },
-            deepseek: {
-                baseUrl: 'https://api.deepseek.com/chat/completions',
-                headers: (key) => ({ 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }),
-                body: (messages, model) => ({ model, messages, stream: true }),
-                parseStream: (line) => {
-                    const data = line.replace('data: ', '');
-                    if (data === '[DONE]') return null;
-                    try {
-                        const json = JSON.parse(data);
-                        return json.choices?.[0]?.delta?.content || '';
-                    } catch { return ''; }
-                }
-            },
-            groq: {
-                baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
-                headers: (key) => ({ 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }),
-                body: (messages, model) => ({ model, messages, stream: true }),
-                parseStream: (line) => {
-                    const data = line.replace('data: ', '');
-                    if (data === '[DONE]') return null;
-                    try {
-                        const json = JSON.parse(data);
-                        return json.choices?.[0]?.delta?.content || '';
-                    } catch { return ''; }
-                }
-            }
-        };
-
-        // ===== INIT =====
         function init() {
             renderChatList();
             loadSettings();
+            checkConnection();
             if (Object.keys(chats).length === 0) {
                 newChat();
             } else {
@@ -1153,7 +995,42 @@
             }
         }
 
-        // ===== CHAT MANAGEMENT =====
+        async function checkConnection() {
+            const statusEl = document.getElementById('connStatus');
+            const dotEl = document.getElementById('connDot');
+            const textEl = document.getElementById('connText');
+
+            if (!backendUrl) {
+                statusEl.className = 'connection-status disconnected';
+                dotEl.textContent = '🔴';
+                textEl.textContent = 'No backend URL';
+                return;
+            }
+
+            statusEl.className = 'connection-status connecting';
+            dotEl.textContent = '🟡';
+            textEl.textContent = 'Connecting...';
+
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                const res = await fetch(backendUrl + '/', { signal: controller.signal });
+                clearTimeout(timeout);
+
+                if (res.ok) {
+                    statusEl.className = 'connection-status connected';
+                    dotEl.textContent = '🟢';
+                    textEl.textContent = 'Connected';
+                } else {
+                    throw new Error('Server error');
+                }
+            } catch (e) {
+                statusEl.className = 'connection-status disconnected';
+                dotEl.textContent = '🔴';
+                textEl.textContent = 'Offline';
+            }
+        }
+
         function newChat() {
             const id = 'chat_' + Date.now();
             chats[id] = { id, title: 'New Chat', messages: [], created: Date.now() };
@@ -1168,11 +1045,9 @@
             currentChatId = id;
             const chat = chats[id];
             if (!chat) return;
-
             renderChatList();
             const msgs = document.getElementById('messages');
             const welcome = document.getElementById('welcomeScreen');
-
             if (chat.messages.length === 0) {
                 showWelcome();
             } else {
@@ -1195,11 +1070,8 @@
             saveChats();
             if (currentChatId === id) {
                 const remaining = Object.keys(chats);
-                if (remaining.length > 0) {
-                    loadChat(remaining[0]);
-                } else {
-                    newChat();
-                }
+                if (remaining.length > 0) loadChat(remaining[0]);
+                else newChat();
             }
             renderChatList();
             showToast('Chat deleted', 'info');
@@ -1233,13 +1105,11 @@
             localStorage.setItem('chats', JSON.stringify(chats));
         }
 
-        // ===== MESSAGES =====
         function appendMessage(role, content, animate = true) {
             const msgs = document.getElementById('messages');
             const welcome = document.getElementById('welcomeScreen');
             welcome.style.display = 'none';
             msgs.style.display = 'flex';
-
             const div = document.createElement('div');
             div.className = `message ${role}`;
             div.innerHTML = `
@@ -1250,15 +1120,6 @@
             msgs.appendChild(div);
             scrollToBottom();
             return div;
-        }
-
-        function updateLastMessage(content) {
-            const msgs = document.getElementById('messages');
-            const last = msgs.lastElementChild;
-            if (last) {
-                last.querySelector('.message-content').innerHTML = formatContent(content);
-                scrollToBottom();
-            }
         }
 
         function formatContent(text) {
@@ -1279,11 +1140,9 @@
         }
 
         function scrollToBottom() {
-            const container = document.getElementById('chatContainer');
-            container.scrollTop = container.scrollHeight;
+            document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
         }
 
-        // ===== SEND MESSAGE =====
         function handleKeydown(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -1306,15 +1165,14 @@
             const text = input.value.trim();
             if (!text || isGenerating) return;
 
-            const modelVal = document.getElementById('modelSelect').value;
-            const [provider, model] = modelVal.split(':');
-
-            const key = apiKeys[provider];
-            if (!key) {
-                showToast(`Please set your ${provider.toUpperCase()} API key!`, 'error');
+            if (!backendUrl) {
+                showToast('Please set your backend server URL in Settings!', 'error');
                 openSettings();
                 return;
             }
+
+            const modelVal = document.getElementById('modelSelect').value;
+            const [provider, model] = modelVal.split(':');
 
             appendMessage('user', text);
             chats[currentChatId].messages.push({ role: 'user', content: text });
@@ -1338,103 +1196,72 @@
             botMsg.querySelector('.message-content').appendChild(typing);
 
             try {
-                await streamResponse(provider, model, key, botMsg);
+                await streamFromBackend(provider, model, botMsg);
             } catch (err) {
                 botMsg.querySelector('.message-content').innerHTML = `<span style="color:var(--error)">❌ Error: ${escapeHtml(err.message)}</span>`;
-                showToast('API Error: ' + err.message, 'error');
+                showToast('Error: ' + err.message, 'error');
             } finally {
                 isGenerating = false;
                 document.getElementById('sendBtn').disabled = false;
             }
         }
 
-        async function streamResponse(provider, model, key, botMsg) {
+        async function streamFromBackend(provider, model, botMsg) {
             const messages = [
                 { role: 'system', content: systemPrompt },
                 ...chats[currentChatId].messages
             ];
 
+            const response = await fetch(backendUrl + '/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider, model, messages })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(err.error || `HTTP ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = '';
+            let buffer = '';
+
             const contentDiv = botMsg.querySelector('.message-content');
             contentDiv.innerHTML = '';
 
-            let fullText = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            if (USE_PROXY) {
-                // Use proxy server (API keys stored server-side in .env)
-                const response = await fetch(`${PROXY_URL}/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider, model, messages })
-                });
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
 
-                if (!response.ok) {
-                    const err = await response.text();
-                    throw new Error(`Proxy HTTP ${response.status}: ${err}`);
-                }
-
-                // Proxy forwards raw SSE chunks from the provider
-                const config = PROVIDERS[provider];
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-
-                    for (const line of lines) {
-                        if (!line.trim() || !line.startsWith('data:')) continue;
-                        const chunk = config.parseStream(line);
-                        if (chunk !== null && chunk !== undefined) {
+                for (const line of lines) {
+                    if (!line.trim() || !line.startsWith('data:')) continue;
+                    const data = line.replace('data: ', '');
+                    if (data === '[DONE]') continue;
+                    try {
+                        const json = JSON.parse(data);
+                        const chunk = json.choices?.[0]?.delta?.content || '';
+                        if (chunk) {
                             fullText += chunk;
                             contentDiv.innerHTML = formatContent(fullText);
                             scrollToBottom();
                         }
-                    }
-                }
-            } else {
-                // Direct API calls (original behavior)
-                const config = PROVIDERS[provider];
-
-                const url = typeof config.baseUrl === 'function' ? config.baseUrl(model, key) : config.baseUrl;
-                const headers = config.headers(key);
-                const body = config.body(messages, model);
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(body)
-                });
-
-                if (!response.ok) {
-                    const err = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${err}`);
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop();
-
-                    for (const line of lines) {
-                        if (!line.trim() || !line.startsWith('data:')) continue;
-                        const chunk = config.parseStream(line);
-                        if (chunk !== null && chunk !== undefined) {
-                            fullText += chunk;
-                            contentDiv.innerHTML = formatContent(fullText);
-                            scrollToBottom();
-                        }
+                    } catch { 
+                        // Gemini format
+                        try {
+                            const json = JSON.parse(data);
+                            const chunk = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                            if (chunk) {
+                                fullText += chunk;
+                                contentDiv.innerHTML = formatContent(fullText);
+                                scrollToBottom();
+                            }
+                        } catch {}
                     }
                 }
             }
@@ -1458,7 +1285,6 @@
             });
         }
 
-        // ===== SETTINGS =====
         function openSettings() {
             document.getElementById('settingsModal').classList.add('active');
             loadSettings();
@@ -1469,51 +1295,23 @@
         }
 
         function loadSettings() {
-            const keys = ['openai', 'gemini', 'bigmodel', 'deepseek', 'groq'];
-            keys.forEach(k => {
-                const input = document.getElementById('key-' + k);
-                const status = document.getElementById('status-' + k);
-                if (apiKeys[k]) {
-                    input.value = apiKeys[k];
-                    status.innerHTML = '<span>🟢</span> Key saved';
-                    status.className = 'api-status saved';
-                } else {
-                    input.value = '';
-                    status.innerHTML = '<span>⚪</span> No key saved';
-                    status.className = 'api-status empty';
-                }
-            });
+            const status = document.getElementById('backendStatus');
+            status.innerHTML = '<span>🟢</span> Connected to ' + backendUrl;
+            status.className = 'api-status saved';
             document.getElementById('systemPrompt').value = systemPrompt;
         }
 
         function saveSettings() {
-            const keys = ['openai', 'gemini', 'bigmodel', 'deepseek', 'groq'];
-            keys.forEach(k => {
-                const val = document.getElementById('key-' + k).value.trim();
-                if (val) apiKeys[k] = val;
-                else delete apiKeys[k];
-            });
             systemPrompt = document.getElementById('systemPrompt').value;
-            localStorage.setItem('apiKeys', JSON.stringify(apiKeys));
             localStorage.setItem('systemPrompt', systemPrompt);
             closeSettings();
             showToast('Settings saved!', 'success');
         }
 
-        function toggleVisibility(id) {
-            const input = document.getElementById(id);
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
-
         function changeModel() {
-            const val = document.getElementById('modelSelect').value;
-            const [provider] = val.split(':');
-            if (!apiKeys[provider]) {
-                showToast(`Please set your ${provider.toUpperCase()} API key!`, 'error');
-            }
+            // Model changed
         }
 
-        // ===== UTILS =====
         function showToast(message, type = 'info') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
