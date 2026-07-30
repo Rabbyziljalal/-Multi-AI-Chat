@@ -1061,7 +1061,9 @@
 
         function showWelcome() {
             document.getElementById('welcomeScreen').style.display = 'flex';
-            document.getElementById('messages').style.display = 'none';
+            const msgs = document.getElementById('messages');
+            msgs.style.display = 'none';
+            msgs.innerHTML = ''; // Clear old messages from DOM
         }
 
         function deleteChat(id, event) {
