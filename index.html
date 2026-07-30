@@ -1055,6 +1055,12 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
+        // ===== CONFIGURATION =====
+        // Set to true to use the proxy server (requires running server.js)
+        // Set to false to make direct API calls from the browser
+        const USE_PROXY = false;
+        const PROXY_URL = 'http://localhost:3000';
+
         // ===== STATE =====
         let currentChatId = null;
         let chats = JSON.parse(localStorage.getItem('chats') || '{}');
@@ -1343,50 +1349,92 @@
         }
 
         async function streamResponse(provider, model, key, botMsg) {
-            const config = PROVIDERS[provider];
             const messages = [
                 { role: 'system', content: systemPrompt },
                 ...chats[currentChatId].messages
             ];
 
-            const url = typeof config.baseUrl === 'function' ? config.baseUrl(model, key) : config.baseUrl;
-            const headers = config.headers(key);
-            const body = config.body(messages, model);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(body)
-            });
-
-            if (!response.ok) {
-                const err = await response.text();
-                throw new Error(`HTTP ${response.status}: ${err}`);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullText = '';
-            let buffer = '';
-
             const contentDiv = botMsg.querySelector('.message-content');
             contentDiv.innerHTML = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            let fullText = '';
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop();
+            if (USE_PROXY) {
+                // Use proxy server (API keys stored server-side in .env)
+                const response = await fetch(`${PROXY_URL}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider, model, messages })
+                });
 
-                for (const line of lines) {
-                    if (!line.trim() || !line.startsWith('data:')) continue;
-                    const chunk = config.parseStream(line);
-                    if (chunk !== null && chunk !== undefined) {
-                        fullText += chunk;
-                        contentDiv.innerHTML = formatContent(fullText);
-                        scrollToBottom();
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(`Proxy HTTP ${response.status}: ${err}`);
+                }
+
+                // Proxy forwards raw SSE chunks from the provider
+                const config = PROVIDERS[provider];
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim() || !line.startsWith('data:')) continue;
+                        const chunk = config.parseStream(line);
+                        if (chunk !== null && chunk !== undefined) {
+                            fullText += chunk;
+                            contentDiv.innerHTML = formatContent(fullText);
+                            scrollToBottom();
+                        }
+                    }
+                }
+            } else {
+                // Direct API calls (original behavior)
+                const config = PROVIDERS[provider];
+
+                const url = typeof config.baseUrl === 'function' ? config.baseUrl(model, key) : config.baseUrl;
+                const headers = config.headers(key);
+                const body = config.body(messages, model);
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const err = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${err}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.trim() || !line.startsWith('data:')) continue;
+                        const chunk = config.parseStream(line);
+                        if (chunk !== null && chunk !== undefined) {
+                            fullText += chunk;
+                            contentDiv.innerHTML = formatContent(fullText);
+                            scrollToBottom();
+                        }
                     }
                 }
             }
