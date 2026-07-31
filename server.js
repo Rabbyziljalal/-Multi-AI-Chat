@@ -46,8 +46,31 @@ app.get('/', (req, res) => {
 });
 
 // ============================================
-// GOOGLE CUSTOM SEARCH API
+// TAVILY SEARCH API
 // ============================================
+async function searchTavily(query) {
+  const response = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      api_key: process.env.TAVILY_API_KEY,
+      query: query,
+      search_depth: 'basic',
+      max_results: 5
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Search failed');
+  }
+
+  return data.results; // array of {title, url, content, ...}
+}
+
 app.get('/api/search', async (req, res) => {
   const query = req.query.q;
   
@@ -58,33 +81,27 @@ app.get('/api/search', async (req, res) => {
   }
 
   try {
-    const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
-      params: {
-        key: process.env.GOOGLE_API_KEY,
-        cx: process.env.GOOGLE_CSE_ID,
-        q: query,
-        num: 5
-      }
-    });
+    const results = await searchTavily(query);
 
-    const results = response.data.items?.map(item => ({
+    // Map Tavily results to frontend format
+    const mappedResults = results.map(item => ({
       title: item.title,
-      link: item.link,
-      snippet: item.snippet
-    })) || [];
+      link: item.url,
+      snippet: item.content
+    }));
 
     res.json({ 
       success: true,
       query: query,
-      results: results 
+      results: mappedResults 
     });
 
   } catch (error) {
-    console.error('Search error:', error.response?.data || error.message);
+    console.error('Search error:', error.message);
     res.status(500).json({ 
       success: false,
       error: 'Search failed',
-      details: error.response?.data?.error?.message || error.message
+      details: error.message
     });
   }
 });
