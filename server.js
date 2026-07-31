@@ -107,10 +107,10 @@ app.get('/api/search', async (req, res) => {
 });
 
 // ============================================
-// AI CHAT ROUTE
+// AI CHAT ROUTE (updated with webSearch support)
 // ============================================
 app.post('/chat', async (req, res) => {
-  const { provider, model, messages, imageBase64, imageMimeType, pdfText } = req.body;
+  const { provider, model, messages, imageBase64, imageMimeType, pdfText, webSearch } = req.body;
 
   if (!provider || !model || !messages) {
     return res.status(400).json({ error: 'Missing provider, model, or messages' });
@@ -121,13 +121,44 @@ app.post('/chat', async (req, res) => {
     return res.status(500).json({ error: `API key for ${provider} not configured on server` });
   }
 
+  let finalMessages = messages;
+  let sources = [];
+
+  // If webSearch is requested, search first and inject context
+  if (webSearch) {
+    try {
+      const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+      const query = lastUserMsg ? lastUserMsg.content : '';
+
+      const results = await searchTavily(query);
+      sources = results.map(r => ({ title: r.title, link: r.url }));
+
+      const context = results
+        .map((r, i) => `[${i + 1}] ${r.title}\n${r.content}\nSource: ${r.url}`)
+        .join('\n\n');
+
+      const searchSystemMsg = {
+        role: 'system',
+        content: `You have access to the following up-to-date web search results. Use them to answer the user's question accurately. Cite sources using [1], [2] etc. where relevant. If the search results are not relevant to the question, answer using your own knowledge instead.\n\nWeb Search Results:\n${context}`
+      };
+
+      // Put the search context right before the last user message
+      finalMessages = [...messages];
+      finalMessages.splice(finalMessages.length - 1, 0, searchSystemMsg);
+
+    } catch (err) {
+      console.error('Web search failed, proceeding without it:', err.message);
+      // Fall back to normal chat without search context
+    }
+  }
+
   try {
     let response;
 
     if (provider === 'gemini') {
-      response = await handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText);
+      response = await handleGemini(model, apiKey, finalMessages, imageBase64, imageMimeType, pdfText);
     } else {
-      response = await handleOpenAICompatible(provider, model, apiKey, messages, imageBase64, imageMimeType, pdfText);
+      response = await handleOpenAICompatible(provider, model, apiKey, finalMessages, imageBase64, imageMimeType, pdfText);
     }
 
     if (!response.ok) {
@@ -138,6 +169,8 @@ app.post('/chat', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    // Send sources as a custom header before streaming starts (frontend can read this)
+    res.setHeader('X-Search-Sources', encodeURIComponent(JSON.stringify(sources)));
 
     const reader = response.body;
     reader.on('data', (chunk) => res.write(chunk));

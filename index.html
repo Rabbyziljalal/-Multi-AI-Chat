@@ -1665,7 +1665,8 @@
             const body = {
                 provider: provider,
                 model: model,
-                messages: messages
+                messages: messages,
+                webSearch: isSearchEnabled
             };
 
             if (currentAttachment) {
@@ -1686,6 +1687,21 @@
             if (!response.ok) {
                 const err = await response.json().catch(function() { return { error: 'Unknown error' }; });
                 throw new Error(err.error || 'HTTP ' + response.status);
+            }
+
+            // Read search sources from header if present
+            const sourcesHeader = response.headers.get('X-Search-Sources');
+            if (sourcesHeader) {
+                try {
+                    const sources = JSON.parse(decodeURIComponent(sourcesHeader));
+                    if (sources.length > 0) {
+                        addHTMLMessage(formatSearchResults(sources.map(function(s) {
+                            return { title: s.title, link: s.link, snippet: '' };
+                        })), 'search');
+                    }
+                } catch (e) {
+                    console.error('Error parsing search sources:', e);
+                }
             }
 
             const reader = response.body.getReader();
