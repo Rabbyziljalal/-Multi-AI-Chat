@@ -730,6 +730,108 @@
             font-size: 0.72rem;
             color: var(--text-muted);
         }
+        .chat-controls {
+            display: flex;
+            align-items: center;
+            max-width: 850px;
+            margin: 0 auto 10px;
+        }
+        #searchToggle {
+            padding: 8px 16px;
+            border: 2px solid var(--border-strong);
+            border-radius: 20px;
+            cursor: pointer;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #searchToggle:hover {
+            border-color: #4CAF50;
+            color: var(--text-primary);
+        }
+        #searchToggle.active {
+            background: #4CAF50;
+            border-color: #4CAF50;
+            color: white;
+        }
+        .search-results {
+            background: var(--bg-tertiary);
+            border-left: 4px solid #4CAF50;
+            padding: 12px 16px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-family: inherit;
+        }
+        .search-results h4 {
+            margin: 0 0 10px 0;
+            color: var(--success);
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .search-result-item {
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .search-result-item:last-child {
+            margin-bottom: 0;
+        }
+        .search-result-item a {
+            color: var(--cyan);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+            display: block;
+        }
+        .search-result-item a:hover {
+            text-decoration: underline;
+        }
+        .search-result-item p {
+            margin: 6px 0 0 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .message.system {
+            justify-content: center;
+        }
+        .message.system .message-content {
+            background: rgba(255,243,205,0.08);
+            border: 1px solid rgba(245,158,11,0.2);
+            color: var(--warning);
+            font-style: italic;
+            font-size: 13px;
+            text-align: center;
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+        }
+        .message.system .message-avatar {
+            display: none;
+        }
+        .message.search {
+            margin: 10px auto;
+            max-width: 95%;
+            justify-content: center;
+        }
+        .message.search .message-content {
+            background: var(--bg-secondary);
+            border-left: 4px solid #4CAF50;
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: 4px 16px;
+            width: 100%;
+        }
+        .message.search .message-avatar {
+            display: none;
+        }
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -1125,6 +1227,14 @@
         </div>
 
         <div class="input-area">
+            <div class="chat-controls">
+                <button id="searchToggle" onclick="toggleSearch()" title="Toggle Web Search">
+                    🔍 Search
+                </button>
+                <span id="searchStatus" style="display:none; color: var(--success); margin-left:8px;">
+                    🌐 Web Search ON
+                </span>
+            </div>
             <div class="input-wrapper">
                 <div class="attachment-preview" id="attachmentPreview"></div>
                 <div class="input-row">
@@ -1203,6 +1313,7 @@
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
         let isGenerating = false;
         let currentAttachment = null;
+        let isSearchEnabled = false;
 
         function init() {
             renderChatList();
@@ -1527,6 +1638,21 @@
         }
 
         async function streamFromBackend(provider, model, text, botMsg) {
+            // Web search integration
+            let searchContext = '';
+            if (isSearchEnabled) {
+                addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
+                const searchResults = await performSearch(text || '');
+                if (searchResults) {
+                    searchContext = searchResults.map(function(r) { return '- ' + r.title + ': ' + r.snippet; }).join('\n');
+                    searchContext = 'Based on web search results:\n' + searchContext + '\n\n';
+                    
+                    // Show search results in chat
+                    addHTMLMessage(formatSearchResults(searchResults), 'search');
+                    showToast('Found ' + searchResults.length + ' search results', 'info');
+                }
+            }
+
             const messages = [
                 { role: 'system', content: systemPrompt },
                 ...chats[currentChatId].messages.slice(0, -1).map(function(m) {
@@ -1534,7 +1660,7 @@
                 })
             ];
 
-            messages.push({ role: 'user', content: text || '' });
+            messages.push({ role: 'user', content: searchContext + 'User question: ' + (text || '') });
 
             const body = {
                 provider: provider,
@@ -1645,6 +1771,67 @@
 
         function changeModel() {
             // Model changed
+        }
+
+        function toggleSearch() {
+            isSearchEnabled = !isSearchEnabled;
+            const status = document.getElementById('searchStatus');
+            const btn = document.getElementById('searchToggle');
+            
+            if (isSearchEnabled) {
+                status.style.display = 'inline';
+                btn.style.background = '#4CAF50';
+                btn.style.color = 'white';
+            } else {
+                status.style.display = 'none';
+                btn.style.background = '';
+                btn.style.color = '';
+            }
+        }
+
+        async function performSearch(query) {
+            try {
+                const response = await fetch(
+                    backendUrl + '/api/search?q=' + encodeURIComponent(query)
+                );
+                const data = await response.json();
+                
+                if (data.success && data.results.length > 0) {
+                    return data.results;
+                }
+                return null;
+            } catch (error) {
+                console.error('Search error:', error);
+                return null;
+            }
+        }
+
+        function formatSearchResults(results) {
+            let html = '<div class="search-results">';
+            html += '<h4>🌐 Web Search Results:</h4>';
+            
+            results.forEach(function(result, index) {
+                html += '<div class="search-result-item">';
+                html += '<a href="' + result.link + '" target="_blank">' + (index + 1) + '. ' + result.title + '</a>';
+                html += '<p>' + result.snippet + '</p>';
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            return html;
+        }
+
+        function addHTMLMessage(html, sender) {
+            const msgs = document.getElementById('messages');
+            const welcome = document.getElementById('welcomeScreen');
+            welcome.style.display = 'none';
+            msgs.style.display = 'flex';
+            const div = document.createElement('div');
+            div.className = 'message ' + sender;
+            div.innerHTML = '<div class="message-content">' + html + '</div>';
+            msgs.appendChild(div);
+            scrollToBottom();
+            return div;
         }
 
         function showToast(message, type) {

@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const cors = require('cors');
 const fetch = require('node-fetch');
 require('dotenv').config();
@@ -39,10 +40,58 @@ function supportsVision(provider, model) {
   return models ? models.some(m => model.toLowerCase().includes(m.toLowerCase())) : false;
 }
 
+// Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'Multi-AI Proxy Server is running', version: '3.0.0', features: ['chat', 'image-analysis', 'pdf-analysis'] });
+  res.json({ message: 'Multi-AI Chat Backend is running!', status: 'Multi-AI Proxy Server is running', version: '3.0.0', features: ['chat', 'image-analysis', 'pdf-analysis', 'search'] });
 });
 
+// ============================================
+// GOOGLE CUSTOM SEARCH API
+// ============================================
+app.get('/api/search', async (req, res) => {
+  const query = req.query.q;
+  
+  if (!query) {
+    return res.status(400).json({ 
+      error: 'Query parameter "q" is required' 
+    });
+  }
+
+  try {
+    const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
+      params: {
+        key: process.env.GOOGLE_API_KEY,
+        cx: process.env.GOOGLE_CSE_ID,
+        q: query,
+        num: 5
+      }
+    });
+
+    const results = response.data.items?.map(item => ({
+      title: item.title,
+      link: item.link,
+      snippet: item.snippet
+    })) || [];
+
+    res.json({ 
+      success: true,
+      query: query,
+      results: results 
+    });
+
+  } catch (error) {
+    console.error('Search error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Search failed',
+      details: error.response?.data?.error?.message || error.message
+    });
+  }
+});
+
+// ============================================
+// AI CHAT ROUTE
+// ============================================
 app.post('/chat', async (req, res) => {
   const { provider, model, messages, imageBase64, imageMimeType, pdfText } = req.body;
 
@@ -220,6 +269,7 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Multi-AI Proxy Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log('🚀 Multi-AI Proxy Server running on port', PORT);
   console.log('Configured providers:', Object.keys(API_KEYS).filter(k => API_KEYS[k]).join(', ') || 'NONE');
 });
