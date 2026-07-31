@@ -1638,19 +1638,9 @@
         }
 
         async function streamFromBackend(provider, model, text, botMsg) {
-            // Web search integration
-            let searchContext = '';
+            // Web search is handled server-side via webSearch flag
             if (isSearchEnabled) {
                 addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
-                const searchResults = await performSearch(text || '');
-                if (searchResults) {
-                    searchContext = searchResults.map(function(r) { return '- ' + r.title + ': ' + r.snippet; }).join('\n');
-                    searchContext = 'Based on web search results:\n' + searchContext + '\n\n';
-                    
-                    // Show search results in chat
-                    addHTMLMessage(formatSearchResults(searchResults), 'search');
-                    showToast('Found ' + searchResults.length + ' search results', 'info');
-                }
             }
 
             const messages = [
@@ -1660,7 +1650,7 @@
                 })
             ];
 
-            messages.push({ role: 'user', content: searchContext + 'User question: ' + (text || '') });
+            messages.push({ role: 'user', content: text || '' });
 
             const body = {
                 provider: provider,
@@ -1802,23 +1792,6 @@
                 status.style.display = 'none';
                 btn.style.background = '';
                 btn.style.color = '';
-            }
-        }
-
-        async function performSearch(query) {
-            try {
-                const response = await fetch(
-                    backendUrl + '/api/search?q=' + encodeURIComponent(query)
-                );
-                const data = await response.json();
-                
-                if (data.success && data.results.length > 0) {
-                    return data.results;
-                }
-                return null;
-            } catch (error) {
-                console.error('Search error:', error);
-                return null;
             }
         }
 
