@@ -32,12 +32,12 @@ const API_KEYS = {
 const VISION_MODELS = {
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
   gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash'],
-  bigmodel: ['glm-4', 'glm-4-plus', 'glm-4v', 'glm-4v-plus'],
+  bigmodel: ['glm-4v', 'glm-4v-plus'],
 };
 
 function supportsVision(provider, model) {
   const models = VISION_MODELS[provider];
-  return models ? models.some(m => model.toLowerCase().includes(m.toLowerCase())) : false;
+  return models ? models.some(m => model.toLowerCase() === m.toLowerCase()) : false;
 }
 
 // Health check
