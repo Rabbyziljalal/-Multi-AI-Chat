@@ -1716,23 +1716,28 @@
                     if (data === '[DONE]') continue;
                     try {
                         const json = JSON.parse(data);
-                        const chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
+                        let chunk = '';
+                        if (json.candidates) {
+                            // Gemini-style chunk: data.candidates[0].content.parts[].text
+                            const parts = json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts;
+                            if (parts && parts.length > 0) {
+                                for (const part of parts) {
+                                    // Skip parts without a 'text' key (some parts only contain 'thoughtSignature')
+                                    if (part && part.text) {
+                                        chunk += part.text;
+                                    }
+                                }
+                            }
+                        } else {
+                            // OpenAI-style chunk: data.choices[0].delta.content
+                            chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
+                        }
                         if (chunk) {
                             fullText += chunk;
                             contentDiv.innerHTML = formatContent(fullText);
                             scrollToBottom();
                         }
-                    } catch {
-                        try {
-                            const json = JSON.parse(data);
-                            const chunk = json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts && json.candidates[0].content.parts[0] && json.candidates[0].content.parts[0].text || '';
-                            if (chunk) {
-                                fullText += chunk;
-                                contentDiv.innerHTML = formatContent(fullText);
-                                scrollToBottom();
-                            }
-                        } catch {}
-                    }
+                    } catch {}
                 }
             }
 
