@@ -31,7 +31,7 @@ const API_KEYS = {
 // Vision-capable models
 const VISION_MODELS = {
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
-  gemini: ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'],
+  gemini: ['gemini-flash-latest', 'gemini-2.5-pro', 'gemini-2.0-flash'],
   bigmodel: ['glm-4v', 'glm-4v-plus'],
 };
 
