@@ -71,6 +71,51 @@ async function searchTavily(query) {
   return data.results; // array of {title, url, content, ...}
 }
 
+// ============================================
+// SERPER SEARCH API (fallback for Tavily)
+// ============================================
+async function searchSerper(query) {
+  const response = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': process.env.SERPER_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ q: query })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Serper search failed');
+  }
+
+  // Normalize Serper's organic results to match Tavily's format
+  const organic = data.organic || [];
+  return organic.slice(0, 5).map(item => ({
+    title: item.title,
+    url: item.link,
+    content: item.snippet
+  }));
+}
+
+// ============================================
+// COMBINED SEARCH WITH FALLBACK
+// ============================================
+async function searchWeb(query) {
+  try {
+    return await searchTavily(query);
+  } catch (err) {
+    console.error('Tavily failed, falling back to Serper:', err.message);
+    try {
+      return await searchSerper(query);
+    } catch (err2) {
+      console.error('Serper also failed:', err2.message);
+      throw new Error('Both search providers failed');
+    }
+  }
+}
+
 app.get('/api/search', async (req, res) => {
   const query = req.query.q;
   
@@ -81,9 +126,9 @@ app.get('/api/search', async (req, res) => {
   }
 
   try {
-    const results = await searchTavily(query);
+    const results = await searchWeb(query);
 
-    // Map Tavily results to frontend format
+    // Map search results to frontend format
     const mappedResults = results.map(item => ({
       title: item.title,
       link: item.url,
@@ -130,7 +175,7 @@ app.post('/chat', async (req, res) => {
       const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
       const query = lastUserMsg ? lastUserMsg.content : '';
 
-      const results = await searchTavily(query);
+      const results = await searchWeb(query);
       sources = results.map(r => ({ title: r.title, link: r.url }));
 
       const context = results
