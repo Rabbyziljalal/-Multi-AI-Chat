@@ -113,6 +113,7 @@ function requireAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('Authenticated as:', decoded.username);
     req.username = decoded.username;
     next();
   } catch (err) {
@@ -374,6 +375,7 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   // ---- Inject this user's saved memory ----
   const memoryFacts = await getMemory(req.username);
+  console.log('Memory fetched for', req.username, ':', memoryFacts);
   if (memoryFacts.length > 0) {
     const memoryContext = {
       role: 'system',
