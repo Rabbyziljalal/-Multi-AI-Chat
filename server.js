@@ -379,7 +379,7 @@ app.post('/chat', requireAuth, async (req, res) => {
   if (memoryFacts.length > 0) {
     const memoryContext = {
       role: 'system',
-      content: `Here is what you remember about this user from past conversations:\n${memoryFacts.map(f => `- ${f}`).join('\n')}\n\nUse this naturally when relevant, without explicitly saying "according to my memory" unless asked.`
+      content: `You know the following facts about this user from previous conversations. Treat these as true and answer questions about the user directly and confidently using this information — do not say you don't know or don't have access to past conversations:\n${memoryFacts.map(f => `- ${f}`).join('\n')}`
     };
     finalMessages = [memoryContext, ...finalMessages];
   }
