@@ -2240,6 +2240,19 @@
             }
             switchLink.addEventListener('click', toggleMode);
 
+            function resetAuthForm() {
+                isSignupMode = false;
+                usernameInput.value = '';
+                passwordInput.value = '';
+                hideError();
+                title.textContent = 'Welcome back';
+                subtitle.textContent = 'Log in to continue to Multi-AI';
+                submitBtn.textContent = 'Log in';
+                switchText.innerHTML = 'Don\'t have an account? <span class="auth-link" id="authSwitchLink">Sign up</span>';
+                document.getElementById('authSwitchLink').addEventListener('click', toggleMode);
+            }
+            window.resetAuthForm = resetAuthForm;
+
             async function submitAuth() {
                 hideError();
                 const username = usernameInput.value.trim();
@@ -2287,13 +2300,18 @@
             submitBtn.addEventListener('click', submitAuth);
             passwordInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
 
-            // ---- On page load: check if already logged in ----
-            const existingToken = localStorage.getItem('authToken');
-            if (existingToken) {
-                overlay.style.display = 'none';
-            } else {
-                overlay.style.display = 'flex';
+            // ---- Check auth state fresh each time the overlay is shown ----
+            function checkAuthState() {
+                const existingToken = localStorage.getItem('authToken');
+                if (existingToken) {
+                    overlay.style.display = 'none';
+                } else {
+                    overlay.style.display = 'flex';
+                }
             }
+
+            // ---- On page load: check if already logged in ----
+            checkAuthState();
         })();
 
         // Collapsible sidebar toggle + settings modal wiring
@@ -2371,8 +2389,19 @@
 
             // --- Log out (from Data tab) ---
             document.getElementById('logoutBtn').addEventListener('click', function() {
+                console.log('Logout clicked, clearing:', localStorage.getItem('authToken'));
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('authUsername');
+                console.log('After clear:', localStorage.getItem('authToken'));
+                // Reset in-memory chat state so no stale data from the previous account remains
+                chats = {};
+                currentChatId = null;
+                saveChats();
+                renderChatList();
+                showWelcome();
+                removeAttachment();
+                // Reset auth form to login mode and clear inputs
+                if (typeof resetAuthForm === 'function') resetAuthForm();
                 closeSettings();
                 document.getElementById('authOverlay').style.display = 'flex';
                 showToast('Logged out', 'info');
