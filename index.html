@@ -46,157 +46,171 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+        /* ============================================ */
+        /* CLAUDE-STYLE SIDEBAR + SETTINGS - CSS        */
+        /* ============================================ */
+        .sidebar,
+        .settings-modal-overlay {
+            --bg-main: #1a1a1a;
+            --bg-sidebar: #171717;
+            --bg-hover: rgba(255,255,255,0.06);
+            --bg-active: rgba(255,255,255,0.09);
+            --text-primary: #e8e8e6;
+            --text-secondary: #9b9b96;
+            --border-subtle: rgba(255,255,255,0.08);
+            --accent: #cc785c;
+        }
+
+        /* -------- Sidebar -------- */
         .sidebar {
-            width: 280px;
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
+            width: 260px;
+            background: var(--bg-sidebar);
             display: flex;
             flex-direction: column;
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 100;
+            transition: width 0.2s ease;
+            border-right: 1px solid var(--border-subtle);
+            flex-shrink: 0;
         }
-        .sidebar-header {
-            padding: 24px 20px 20px;
-            border-bottom: 1px solid var(--border);
+
+        .sidebar.collapsed {
+            width: 68px;
         }
-        .logo {
+
+        .sidebar-top {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: space-between;
+            padding: 14px 12px;
         }
-        .logo svg {
-            flex-shrink: 0;
-            filter: drop-shadow(0 0 12px rgba(0,212,255,0.25));
-            overflow: visible;
-        }
-        .logo-text {
-            font-size: 1.25rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-        }
-        .logo-sub {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-top: 2px;
-        }
-        .new-chat-btn {
-            margin: 16px 20px;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, var(--cyan), var(--purple));
+
+        .sidebar-toggle-btn {
+            background: none;
             border: none;
-            border-radius: var(--radius-sm);
-            color: white;
-            font-size: 0.95rem;
-            font-weight: 600;
+            color: var(--text-secondary);
             cursor: pointer;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            transition: all 0.25s ease;
-            box-shadow: 0 4px 20px rgba(0,212,255,0.2);
-            position: relative;
-            overflow: hidden;
+            border-radius: 6px;
         }
-        .new-chat-btn::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, transparent, rgba(255,255,255,0.15), transparent);
-            transform: translateX(-100%);
-            transition: transform 0.5s ease;
-        }
-        .new-chat-btn:hover::before { transform: translateX(100%); }
-        .new-chat-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,212,255,0.3); }
-        .new-chat-btn:active { transform: scale(0.98); }
-        .section-title {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin: 0 20px 10px;
-            font-weight: 600;
-        }
-        .chat-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0 12px;
-        }
-        .chat-item {
-            padding: 11px 14px;
-            margin-bottom: 4px;
-            border-radius: var(--radius-xs);
-            cursor: pointer;
+        .sidebar-toggle-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        .sidebar-brand {
             display: flex;
             align-items: center;
-            gap: 10px;
-            transition: all 0.2s ease;
+            gap: 8px;
+            padding: 4px 16px 16px;
+        }
+        .sidebar.collapsed .sidebar-brand-text { display: none; }
+
+        .new-chat-btn {
+            margin: 0 12px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #0066ff, #4d3dff);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s ease, opacity 0.2s ease;
+        }
+        .new-chat-btn:hover {
+            background: linear-gradient(135deg, #0052cc, #3d2ecc);
+            opacity: 1;
+        }
+        .sidebar.collapsed .new-chat-btn {
+            width: 40px; height: 40px; padding: 0;
+            justify-content: center; border-radius: 50%; margin: 0 auto 12px;
+        }
+        .sidebar.collapsed .new-chat-btn .btn-label { display: none; }
+
+        .chat-history-heading {
+            padding: 8px 16px 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
             color: var(--text-secondary);
-            font-size: 0.88rem;
-            position: relative;
-            border: 1px solid transparent;
+            text-transform: uppercase;
         }
-        .chat-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: var(--border-strong);
+        .sidebar.collapsed .chat-history-heading,
+        .sidebar.collapsed .chat-history-list {
+            display: none;
         }
-        .chat-item.active {
-            background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(123,47,247,0.08));
-            border-color: rgba(0,212,255,0.2);
-            color: var(--text-primary);
+
+        .chat-history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 8px;
         }
-        .chat-item .chat-icon { font-size: 1rem; flex-shrink: 0; }
-        .chat-item .chat-title {
+
+        .chat-history-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13.5px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-history-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .chat-history-item.active { background: var(--bg-active); color: var(--text-primary); }
+        .chat-history-item .chat-icon { flex-shrink: 0; }
+        .chat-history-item .chat-title {
             flex: 1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-weight: 500;
         }
-        .chat-item .delete-btn {
+        .chat-history-item .delete-btn {
             opacity: 0;
             background: none;
             border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 6px;
-            transition: all 0.2s;
-            font-size: 0.85rem;
-        }
-        .chat-item:hover .delete-btn { opacity: 1; }
-        .chat-item .delete-btn:hover { color: var(--error); background: rgba(239,68,68,0.1); }
-        .sidebar-footer {
-            padding: 14px 16px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: 8px;
-        }
-        .sidebar-footer button {
-            flex: 1;
-            padding: 10px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
             color: var(--text-secondary);
             cursor: pointer;
-            font-size: 0.82rem;
-            transition: all 0.2s;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: opacity 0.15s;
+            flex-shrink: 0;
+        }
+        .chat-history-item:hover .delete-btn { opacity: 1; }
+        .chat-history-item .delete-btn:hover { color: #e08a7d; }
+
+        /* -------- Sidebar bottom: only Settings -------- */
+        .sidebar-bottom {
+            padding: 8px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .sidebar-settings-btn {
             display: flex;
             align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            font-size: 13.5px;
+        }
+        .sidebar-settings-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .sidebar.collapsed .sidebar-settings-btn {
             justify-content: center;
-            gap: 6px;
-            font-weight: 500;
+            padding: 9px 0;
         }
-        .sidebar-footer button:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: rgba(0,212,255,0.3);
-        }
+        .sidebar.collapsed .sidebar-settings-btn .btn-label { display: none; }
         .main {
             flex: 1;
             display: flex;
@@ -297,30 +311,6 @@
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.6; transform: scale(0.85); }
-        }
-        .top-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .icon-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: var(--radius-xs);
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: all 0.2s;
-        }
-        .icon-btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: rgba(0,212,255,0.3);
-            transform: translateY(-1px);
         }
         .chat-container {
             flex: 1;
@@ -832,149 +822,377 @@
         .message.search .message-avatar {
             display: none;
         }
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(12px);
-            display: none;
-            align-items: center;
-            justify-content: center;
+        /* -------- Settings modal (Claude-style) -------- */
+        .settings-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
             z-index: 1000;
-            padding: 20px;
-            animation: fadeIn 0.2s ease;
         }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            width: 100%;
-            max-width: 560px;
-            max-height: 85vh;
-            overflow: hidden;
+
+        .settings-modal {
+            position: relative;
+            background: var(--bg-main, #1a1a1a);
+            border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            border-radius: 12px;
+            width: 760px;
+            max-width: 94vw;
+            height: 600px;
+            max-height: 88vh;
             display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow);
-            animation: modalIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-direction: row;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: var(--text-primary, #e8e8e6);
         }
-        @keyframes modalIn {
-            from { opacity: 0; transform: scale(0.92) translateY(10px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .modal-header {
-            padding: 22px 24px;
-            border-bottom: 1px solid var(--border);
+
+        .settings-modal-header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            background: var(--bg-main, #1a1a1a);
+            z-index: 2;
         }
-        .modal-header h2 {
-            font-size: 1.15rem;
-            font-weight: 700;
+        .settings-modal-header h2 {
+            font-size: 16px; font-weight: 600; color: var(--text-primary, #e8e8e6); margin: 0;
+        }
+        .settings-modal-close {
+            background: none; border: none; color: var(--text-secondary, #9b9b96);
+            cursor: pointer; font-size: 18px; width: 28px; height: 28px;
+            display: flex; align-items: center; justify-content: center; border-radius: 6px;
+        }
+        .settings-modal-close:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text-primary, #e8e8e6); }
+
+        .settings-modal-body {
+            flex: 1;
+            padding: 20px 22px;
+            overflow-y: auto;
+        }
+
+        /* -------- Settings tab navigation -------- */
+        .settings-nav {
+            width: 200px;
+            flex-shrink: 0;
+            background: #171717;
+            border-right: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            padding: 16px 8px;
+            overflow-y: auto;
+        }
+
+        .settings-nav-item {
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-        .modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.6rem;
-            cursor: pointer;
-            width: 34px;
-            height: 34px;
+            padding: 8px 12px;
             border-radius: 8px;
+            color: var(--text-secondary, #9b9b96);
+            font-size: 13.5px;
+            cursor: pointer;
+        }
+        .settings-nav-item:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text-primary, #e8e8e6); }
+        .settings-nav-item.active { background: var(--bg-active, rgba(255,255,255,0.09)); color: var(--text-primary, #e8e8e6); font-weight: 500; }
+
+        .settings-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .settings-pane { display: none; }
+        .settings-pane.active { display: block; }
+
+        .settings-avatar {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: linear-gradient(135deg, #0066ff, #4d3dff);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 22px; font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .settings-section {
+            margin-bottom: 24px;
+        }
+        .settings-section:last-child { margin-bottom: 0; }
+
+        .settings-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary, #e8e8e6);
+            margin-bottom: 4px;
+        }
+        .settings-section-desc {
+            font-size: 12.5px;
+            color: var(--text-secondary, #9b9b96);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .settings-input,
+        .settings-textarea {
+            width: 100%;
+            background: #262624;
+            border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            border-radius: 8px;
+            padding: 9px 12px;
+            color: var(--text-primary, #e8e8e6);
+            font-size: 13.5px;
+            box-sizing: border-box;
+        }
+        .settings-textarea { min-height: 90px; resize: vertical; font-family: inherit; }
+
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row-label { font-size: 13.5px; color: var(--text-primary, #e8e8e6); }
+        .settings-row-desc { font-size: 12px; color: var(--text-secondary, #9b9b96); margin-top: 2px; }
+
+        /* Toggle switch */
+        .settings-toggle {
+            width: 38px; height: 22px;
+            background: #444;
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+            flex-shrink: 0;
+        }
+        .settings-toggle.on { background: var(--accent, #cc785c); }
+        .settings-toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px; height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px; left: 2px;
+            transition: left 0.2s;
+        }
+        .settings-toggle.on::after { left: 18px; }
+
+        .settings-provider-list {
+            display: flex; flex-wrap: wrap; gap: 6px;
+        }
+        .settings-provider-chip {
+            padding: 4px 10px;
+            background: #262624;
+            border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-secondary, #9b9b96);
+        }
+
+        .settings-danger-btn {
+            background: none;
+            border: 1px solid #7a3b34;
+            color: #e08a7d;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .settings-danger-btn:hover { background: rgba(224,138,125,0.1); }
+
+        .settings-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 14px 22px;
+            border-top: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            flex-shrink: 0;
+        }
+        .settings-btn-cancel {
+            background: none; border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            color: var(--text-primary, #e8e8e6); padding: 8px 16px; border-radius: 8px;
+            font-size: 13.5px; cursor: pointer;
+        }
+        .settings-btn-save {
+            background: var(--accent, #cc785c); border: none; color: #fff;
+            padding: 8px 16px; border-radius: 8px; font-size: 13.5px; cursor: pointer; font-weight: 500;
+        }
+        body.reduce-motion * {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+
+        /* -------- Auth overlay (login / signup) - v3 premium -------- */
+        .auth-overlay {
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse 800px 600px at 20% 10%, rgba(34,211,238,0.10), transparent 60%),
+                radial-gradient(ellipse 700px 700px at 85% 90%, rgba(236,72,153,0.10), transparent 60%),
+                radial-gradient(ellipse 600px 600px at 50% 50%, rgba(168,85,247,0.05), transparent 70%),
+                #08080a;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+        }
+
+        .auth-box {
+            position: relative;
+            background: linear-gradient(180deg, rgba(26,26,28,0.9), rgba(18,18,20,0.95));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 24px;
+            padding: 48px 44px;
+            width: 460px;
+            max-width: 92vw;
+            box-shadow:
+                0 25px 70px rgba(0,0,0,0.6),
+                0 0 0 1px rgba(255,255,255,0.03) inset,
+                0 1px 0 rgba(255,255,255,0.06) inset;
+        }
+
+        /* subtle top border glow accent */
+        .auth-box::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 15%; right: 15%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(168,85,247,0.6), rgba(236,72,153,0.6), transparent);
+            border-radius: 24px 24px 0 0;
+        }
+
+        .auth-logo-wrap {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        /* Wrapper that hosts the app logo (reused, larger + glow) */
+        .auth-logo-frame {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-            line-height: 1;
+            background: linear-gradient(145deg, rgba(34,211,238,0.15), rgba(168,85,247,0.15), rgba(236,72,153,0.15));
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 40px rgba(168,85,247,0.25);
         }
-        .modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .modal-body {
-            padding: 20px 24px;
-            overflow-y: auto;
-            flex: 1;
+
+        .auth-logo-frame img,
+        .auth-logo-frame svg {
+            width: 42px;
+            height: 42px;
         }
-        .setting-group {
-            margin-bottom: 24px;
+
+        .auth-brand {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            margin-bottom: 6px;
+            background: linear-gradient(120deg, #22d3ee, #a855f7 50%, #ec4899);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .setting-group label {
-            display: block;
-            font-size: 0.88rem;
+
+        .auth-box h2 {
+            color: #f5f5f3;
+            font-size: 18px;
             font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-primary);
+            margin: 0 0 4px;
+            text-align: center;
         }
-        .setting-group .setting-desc {
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-            line-height: 1.5;
+
+        .auth-box p.auth-sub {
+            color: #8b8b87;
+            font-size: 13.5px;
+            text-align: center;
+            margin: 0 0 28px;
         }
-        .setting-group input[type="text"],
-        .setting-group input[type="password"],
-        .setting-group textarea {
-            width: 100%;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-xs);
-            padding: 12px 14px;
-            color: var(--text-primary);
-            font-size: 0.9rem;
+
+        .auth-input-group { margin-bottom: 14px; }
+
+        .auth-input {
+            width: 100%; box-sizing: border-box;
+            background: rgba(255,255,255,0.04);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            color: #f0f0ee;
+            font-size: 14.5px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .auth-input:focus {
             outline: none;
-            transition: all 0.2s;
-            font-family: inherit;
+            background: rgba(255,255,255,0.06);
+            border-color: #a855f7;
+            box-shadow: 0 0 0 4px rgba(168,85,247,0.12);
         }
-        .setting-group input:focus,
-        .setting-group textarea:focus {
-            border-color: var(--cyan);
-            box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
-        }
-        .setting-group input::placeholder,
-        .setting-group textarea::placeholder { color: var(--text-muted); }
-        .api-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.8rem;
-            margin-top: 8px;
-            font-weight: 500;
-        }
-        .api-status.saved { color: var(--success); }
-        .api-status.empty { color: var(--text-muted); }
-        .modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .btn {
-            padding: 10px 20px;
-            border-radius: var(--radius-xs);
-            font-size: 0.88rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+
+        .auth-input::placeholder { color: #6b6b68; }
+
+        .auth-submit-btn {
+            width: 100%;
+            background: linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899);
+            color: #fff;
             border: none;
-            font-family: inherit;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.15s ease, box-shadow 0.25s ease, filter 0.2s;
+            box-shadow: 0 8px 24px rgba(168,85,247,0.35);
         }
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            border: 1px solid var(--border);
+
+        .auth-submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.08);
+            box-shadow: 0 12px 32px rgba(168,85,247,0.5);
         }
-        .btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--cyan), var(--purple));
-            color: white;
-            box-shadow: 0 4px 16px rgba(0,212,255,0.2);
+
+        .auth-submit-btn:active:not(:disabled) { transform: translateY(0); }
+
+        .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 22px;
+            font-size: 13.5px;
+            color: #8b8b87;
         }
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 24px rgba(0,212,255,0.3);
+
+        .auth-switch span.auth-link {
+            color: #d896ff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .auth-switch span.auth-link:hover { color: #e8b4ff; text-decoration: underline; }
+
+        .auth-error {
+            background: rgba(224,110,110,0.08);
+            border: 1px solid rgba(224,110,110,0.25);
+            color: #f2a5a5;
+            font-size: 12.5px;
+            padding: 11px 14px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+
+        .auth-tagline {
+            text-align: center;
+            color: #55554f;
+            font-size: 12px;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
         }
         .toast-container {
             position: fixed;
@@ -1007,45 +1225,7 @@
         .toast.error { border-left: 3px solid var(--error); }
         .toast.info { border-left: 3px solid var(--accent); }
         .toast.warning { border-left: 3px solid var(--warning); }
-        .mobile-toggle {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 100;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--cyan), var(--purple));
-            border: none;
-            color: white;
-            font-size: 1.3rem;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(0,212,255,0.3);
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s;
-        }
-        .mobile-toggle:hover { transform: scale(1.05); }
-        .sidebar-backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 99;
-            backdrop-filter: blur(4px);
-        }
-        .sidebar-backdrop.active { display: block; }
         @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                left: 0;
-                top: 0;
-                bottom: 0;
-                transform: translateX(-100%);
-            }
-            .sidebar.open { transform: translateX(0); }
-            .mobile-toggle { display: flex; }
             .top-bar { padding: 0 16px; }
             .chat-container { padding: 16px; }
             .input-area { padding: 12px 16px 16px; }
@@ -1064,67 +1244,68 @@
 
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <svg width="42" height="42" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 10px rgba(0,212,255,0.3));">
-                    <defs>
-                        <linearGradient id="logoGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#00d4ff"/>
-                            <stop offset="50%" style="stop-color:#7b2ff7"/>
-                            <stop offset="100%" style="stop-color:#ff2d92"/>
-                        </linearGradient>
-                        <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.9"/>
-                            <stop offset="100%" style="stop-color:#7b2ff7;stop-opacity:0.9"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="90" cy="90" r="82" stroke="url(#logoGrad1)" stroke-width="2" opacity="0.5" fill="none"/>
-                    <circle cx="90" cy="90" r="74" stroke="url(#logoGrad1)" stroke-width="1" opacity="0.3" fill="none" stroke-dasharray="5 5"/>
-                    <path d="M90 32 C58 32, 36 54, 36 82 C36 98, 46 112, 62 120 L62 142 L86 124 C87 124, 89 124, 90 124 C122 124, 144 102, 144 82 C144 54, 122 32, 90 32Z" 
-                          fill="url(#logoGrad1)" opacity="0.18"/>
-                    <path d="M90 38 C63 38, 44 57, 44 82 C44 96, 52 108, 66 115 L66 132 L82 119 C84 119, 87 119, 90 119 C117 119, 136 100, 136 82 C136 57, 117 38, 90 38Z" 
-                          fill="none" stroke="url(#logoGrad1)" stroke-width="3"/>
-                    <path d="M62 70 Q78 60, 94 70 T118 70" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
-                    <path d="M68 82 Q82 73, 98 82 T122 82" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
-                    <path d="M74 94 Q86 86, 100 94" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
-                    <circle cx="52" cy="52" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
-                    <circle cx="128" cy="52" r="6.5" fill="#7b2ff7" style="filter: drop-shadow(0 0 5px #7b2ff7);"/>
-                    <circle cx="52" cy="112" r="6.5" fill="#ff2d92" style="filter: drop-shadow(0 0 5px #ff2d92);"/>
-                    <circle cx="128" cy="112" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
-                    <line x1="58" y1="55" x2="76" y2="68" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
-                    <line x1="122" y1="55" x2="104" y2="68" stroke="#7b2ff7" stroke-width="1.5" opacity="0.55"/>
-                    <line x1="58" y1="109" x2="76" y2="96" stroke="#ff2d92" stroke-width="1.5" opacity="0.55"/>
-                    <line x1="122" y1="109" x2="104" y2="96" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
+        <div class="sidebar-top">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
                 </svg>
-                <div>
-                    <div class="logo-text gradient-text">Multi-AI</div>
-                    <div class="logo-sub">Chat Platform</div>
-                </div>
-            </div>
+            </button>
         </div>
 
-        <button class="new-chat-btn" onclick="newChat()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+        <div class="sidebar-brand">
+            <svg width="42" height="42" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 10px rgba(0,212,255,0.3));">
+                <defs>
+                    <linearGradient id="logoGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d4ff"/>
+                        <stop offset="50%" style="stop-color:#7b2ff7"/>
+                        <stop offset="100%" style="stop-color:#ff2d92"/>
+                    </linearGradient>
+                    <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.9"/>
+                        <stop offset="100%" style="stop-color:#7b2ff7;stop-opacity:0.9"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="90" cy="90" r="82" stroke="url(#logoGrad1)" stroke-width="2" opacity="0.5" fill="none"/>
+                <circle cx="90" cy="90" r="74" stroke="url(#logoGrad1)" stroke-width="1" opacity="0.3" fill="none" stroke-dasharray="5 5"/>
+                <path d="M90 32 C58 32, 36 54, 36 82 C36 98, 46 112, 62 120 L62 142 L86 124 C87 124, 89 124, 90 124 C122 124, 144 102, 144 82 C144 54, 122 32, 90 32Z" 
+                      fill="url(#logoGrad1)" opacity="0.18"/>
+                <path d="M90 38 C63 38, 44 57, 44 82 C44 96, 52 108, 66 115 L66 132 L82 119 C84 119, 87 119, 90 119 C117 119, 136 100, 136 82 C136 57, 117 38, 90 38Z" 
+                      fill="none" stroke="url(#logoGrad1)" stroke-width="3"/>
+                <path d="M62 70 Q78 60, 94 70 T118 70" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M68 82 Q82 73, 98 82 T122 82" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M74 94 Q86 86, 100 94" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="52" cy="52" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
+                <circle cx="128" cy="52" r="6.5" fill="#7b2ff7" style="filter: drop-shadow(0 0 5px #7b2ff7);"/>
+                <circle cx="52" cy="112" r="6.5" fill="#ff2d92" style="filter: drop-shadow(0 0 5px #ff2d92);"/>
+                <circle cx="128" cy="112" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
+                <line x1="58" y1="55" x2="76" y2="68" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
+                <line x1="122" y1="55" x2="104" y2="68" stroke="#7b2ff7" stroke-width="1.5" opacity="0.55"/>
+                <line x1="58" y1="109" x2="76" y2="96" stroke="#ff2d92" stroke-width="1.5" opacity="0.55"/>
+                <line x1="122" y1="109" x2="104" y2="96" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
             </svg>
-            New Chat
+            <span class="sidebar-brand-text" style="font-weight:700; color:var(--text-primary);">Multi-AI</span>
+        </div>
+
+        <button class="new-chat-btn" id="newChatBtn" onclick="newChat()" title="New chat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span class="btn-label">New chat</span>
         </button>
 
-        <div class="section-title">Chat History</div>
-        <div class="chat-list" id="chatList"></div>
+        <div class="chat-history-heading">Chats</div>
+        <div class="chat-history-list" id="chatHistoryList"></div>
 
-        <div class="sidebar-footer">
-            <button onclick="openSettings()">
-                <span>⚙️</span> Settings
-            </button>
-            <button onclick="clearAllChats()">
-                <span>🗑️</span> Clear
+        <div class="sidebar-bottom">
+            <button class="sidebar-settings-btn" id="openSettingsBtn">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span class="btn-label">Settings</span>
             </button>
         </div>
     </aside>
-
-    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
 
     <!-- MAIN -->
     <main class="main">
@@ -1151,10 +1332,6 @@
                     <span class="conn-dot connecting" id="connDot"></span>
                     <span id="connText">Checking...</span>
                 </div>
-            </div>
-            <div class="top-actions">
-                <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
-                <button class="icon-btn" onclick="exportChat()" title="Export Chat">💾</button>
             </div>
         </div>
 
@@ -1198,7 +1375,7 @@
                         <line x1="122" y1="109" x2="104" y2="96" stroke="#00d4ff" stroke-width="1.5" opacity="0.6"/>
                     </svg>
                 </div>
-                <h1 class="gradient-text">Multi-AI Chatbot</h1>
+                <h1 id="welcomeHeading">Multi-AI Chatbot</h1>
                 <p class="subtitle">Chat with multiple AI models in one place. Upload images or PDFs to analyze with AI. All powered by your secure backend server.</p>
                 <div class="quick-actions">
                     <div class="quick-action" onclick="sendQuick('Write a short poem about technology')">
@@ -1256,48 +1433,164 @@
 
     <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf" style="display:none" onchange="handleFileSelect(event)" multiple>
 
-    <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+    <!-- LOGIN / SIGNUP SCREEN - v3 premium -->
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-box">
 
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
-            <div class="modal-header">
+            <div class="auth-logo-wrap">
+                <div class="auth-logo-frame">
+                    <!-- Reuses the exact app logo from the sidebar -->
+                    <svg width="42" height="42" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 10px rgba(0,212,255,0.3));">
+                        <defs>
+                            <linearGradient id="logoGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00d4ff"/>
+                                <stop offset="50%" style="stop-color:#7b2ff7"/>
+                                <stop offset="100%" style="stop-color:#ff2d92"/>
+                            </linearGradient>
+                            <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.9"/>
+                                <stop offset="100%" style="stop-color:#7b2ff7;stop-opacity:0.9"/>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="90" cy="90" r="82" stroke="url(#logoGrad1)" stroke-width="2" opacity="0.5" fill="none"/>
+                        <circle cx="90" cy="90" r="74" stroke="url(#logoGrad1)" stroke-width="1" opacity="0.3" fill="none" stroke-dasharray="5 5"/>
+                        <path d="M90 32 C58 32, 36 54, 36 82 C36 98, 46 112, 62 120 L62 142 L86 124 C87 124, 89 124, 90 124 C122 124, 144 102, 144 82 C144 54, 122 32, 90 32Z" 
+                              fill="url(#logoGrad1)" opacity="0.18"/>
+                        <path d="M90 38 C63 38, 44 57, 44 82 C44 96, 52 108, 66 115 L66 132 L82 119 C84 119, 87 119, 90 119 C117 119, 136 100, 136 82 C136 57, 117 38, 90 38Z" 
+                              fill="none" stroke="url(#logoGrad1)" stroke-width="3"/>
+                        <path d="M62 70 Q78 60, 94 70 T118 70" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M68 82 Q82 73, 98 82 T122 82" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M74 94 Q86 86, 100 94" fill="none" stroke="url(#logoGrad2)" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="52" cy="52" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
+                        <circle cx="128" cy="52" r="6.5" fill="#7b2ff7" style="filter: drop-shadow(0 0 5px #7b2ff7);"/>
+                        <circle cx="52" cy="112" r="6.5" fill="#ff2d92" style="filter: drop-shadow(0 0 5px #ff2d92);"/>
+                        <circle cx="128" cy="112" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 5px #00d4ff);"/>
+                        <line x1="58" y1="55" x2="76" y2="68" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
+                        <line x1="122" y1="55" x2="104" y2="68" stroke="#7b2ff7" stroke-width="1.5" opacity="0.55"/>
+                        <line x1="58" y1="109" x2="76" y2="96" stroke="#ff2d92" stroke-width="1.5" opacity="0.55"/>
+                        <line x1="122" y1="109" x2="104" y2="96" stroke="#00d4ff" stroke-width="1.5" opacity="0.55"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="auth-brand">Multi-AI</div>
+            <h2 id="authTitle">Welcome back</h2>
+            <p class="auth-sub" id="authSubtitle">Log in to continue to Multi-AI</p>
+
+            <div class="auth-error" id="authError" style="display:none;"></div>
+
+            <div class="auth-input-group">
+                <input type="text" class="auth-input" id="authUsername" placeholder="Username" autocomplete="username">
+            </div>
+            <div class="auth-input-group">
+                <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password">
+            </div>
+
+            <button class="auth-submit-btn" id="authSubmitBtn">Log in</button>
+
+            <div class="auth-switch">
+                <span id="authSwitchText">Don't have an account? <span class="auth-link" id="authSwitchLink">Sign up</span></span>
+            </div>
+
+            <div class="auth-tagline">Chat with multiple AI models in one secure place</div>
+        </div>
+    </div>
+
+    <div class="settings-modal-overlay" id="settingsModalOverlay" style="display:none;">
+        <div class="settings-modal">
+            <div class="settings-modal-header" style="width:100%; position:absolute; top:0; left:0; right:0;">
                 <h2>Settings</h2>
-                <button class="modal-close" onclick="closeSettings()">&times;</button>
+                <button class="settings-modal-close" id="closeSettingsBtn">&times;</button>
             </div>
-            <div class="modal-body">
-                <p style="color: var(--text-muted); font-size: 0.82rem; margin-bottom: 22px; line-height: 1.6;">
-                    Secure Setup: API keys are stored on your backend server, not in the browser. The frontend only sends requests to your proxy server.
-                </p>
-                <div class="setting-group">
-                    <label>Backend Server</label>
-                    <div class="setting-desc">Your Render proxy server URL that handles API requests securely</div>
-                    <div style="padding: 12px 14px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-xs); color: var(--text-secondary); font-size: 0.88rem; font-family: 'Fira Code', monospace; word-break: break-all;">
-                        https://multi-ai-chat-1.onrender.com
+
+            <nav class="settings-nav" style="margin-top:56px;">
+                <div class="settings-nav-item active" data-pane="general">General</div>
+                <div class="settings-nav-item" data-pane="profile">Profile</div>
+                <div class="settings-nav-item" data-pane="preferences">Preferences</div>
+                <div class="settings-nav-item" data-pane="data">Data</div>
+            </nav>
+
+            <div class="settings-main" style="margin-top:56px;">
+                <div class="settings-modal-body">
+
+                    <!-- GENERAL -->
+                    <div class="settings-pane active" id="pane-general">
+                        <div class="settings-section">
+                            <div class="settings-section-title">Backend server</div>
+                            <div class="settings-section-desc">Your Render proxy server URL that handles API requests securely.</div>
+                            <input type="text" class="settings-input" id="backendUrlInput" placeholder="https://your-backend.onrender.com">
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-title">Default model</div>
+                            <div class="settings-section-desc">Model selected automatically when you start a new chat.</div>
+                            <select class="settings-input" id="defaultModelSelect"></select>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-row">
+                                <div>
+                                    <div class="settings-row-label">Web search by default</div>
+                                    <div class="settings-row-desc">Automatically enable web search for new chats</div>
+                                </div>
+                                <button class="settings-toggle" id="webSearchDefaultToggle"></button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-title">Supported providers</div>
+                            <div class="settings-provider-list" id="providerList"></div>
+                        </div>
                     </div>
-                    <div class="api-status saved" id="backendStatus">
-                        <span>Connected and operational</span>
+
+                    <!-- PROFILE -->
+                    <div class="settings-pane" id="pane-profile">
+                        <div class="settings-avatar" id="profileAvatarInitial">U</div>
+                        <div class="settings-section">
+                            <div class="settings-section-title">Full name</div>
+                            <input type="text" class="settings-input" id="profileNameInput" placeholder="Your name">
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-title">What should the assistant call you?</div>
+                            <input type="text" class="settings-input" id="profileNicknameInput" placeholder="Nickname">
+                        </div>
                     </div>
-                </div>
-                <div class="setting-group" style="margin-top: 24px;">
-                    <label>System Prompt (Bot Personality)</label>
-                    <div class="setting-desc">Define how the AI assistant behaves, responds, and its expertise areas</div>
-                    <textarea id="systemPrompt" rows="4" placeholder="You are a helpful AI assistant.">You are a helpful AI assistant.</textarea>
-                </div>
-                <div class="setting-group" style="margin-top: 20px;">
-                    <label>Supported Providers</label>
-                    <div class="setting-desc">Your backend currently supports these AI providers</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                        <span style="padding: 5px 12px; background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.15); border-radius: 20px; font-size: 0.78rem; color: var(--cyan);">OpenAI</span>
-                        <span style="padding: 5px 12px; background: rgba(123,47,247,0.08); border: 1px solid rgba(123,47,247,0.15); border-radius: 20px; font-size: 0.78rem; color: var(--purple);">Google</span>
-                        <span style="padding: 5px 12px; background: rgba(255,45,146,0.08); border: 1px solid rgba(255,45,146,0.15); border-radius: 20px; font-size: 0.78rem; color: var(--pink);">DeepSeek</span>
-                        <span style="padding: 5px 12px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.15); border-radius: 20px; font-size: 0.78rem; color: var(--accent-hover);">Groq</span>
-                        <span style="padding: 5px 12px; background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15); border-radius: 20px; font-size: 0.78rem; color: var(--success);">BigModel</span>
+
+                    <!-- PREFERENCES -->
+                    <div class="settings-pane" id="pane-preferences">
+                        <div class="settings-section">
+                            <div class="settings-section-title">System prompt</div>
+                            <div class="settings-section-desc">Define how the AI assistant behaves, responds, and its expertise areas.</div>
+                            <textarea class="settings-textarea" id="systemPromptInput" placeholder="You are a helpful assistant..."></textarea>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-row">
+                                <div>
+                                    <div class="settings-row-label">Reduce animation</div>
+                                    <div class="settings-row-desc">Reduce motion in streaming responses and UI elements</div>
+                                </div>
+                                <button class="settings-toggle" id="reduceMotionToggle"></button>
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- DATA -->
+                    <div class="settings-pane" id="pane-data">
+                        <div class="settings-section">
+                            <div class="settings-section-title">Chat history</div>
+                            <div class="settings-section-desc">All chat history is stored locally in your browser, not on any server.</div>
+                            <button class="settings-danger-btn" id="clearAllHistoryBtn">Clear all chat history</button>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-title">Account</div>
+                            <div class="settings-section-desc" id="loggedInAs">Not logged in</div>
+                            <button class="settings-danger-btn" id="logoutBtn">Log out</button>
+                        </div>
+                    </div>
+
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+
+                <div class="settings-modal-footer">
+                    <button class="settings-btn-cancel" id="settingsCancelBtn">Cancel</button>
+                    <button class="settings-btn-save" id="settingsSaveBtn">Save settings</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1309,16 +1602,21 @@
 
         let currentChatId = null;
         let chats = JSON.parse(localStorage.getItem('chats') || '{}');
-        let backendUrl = 'https://multi-ai-chat-1.onrender.com';
+        let backendUrl = localStorage.getItem('backendUrl') || 'https://multi-ai-chat-1.onrender.com';
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
+        let defaultModel = localStorage.getItem('defaultModel') || 'openai:gpt-4o-mini';
+        let webSearchDefault = localStorage.getItem('webSearchDefault') === 'true';
         let isGenerating = false;
         let currentAttachment = null;
-        let isSearchEnabled = false;
+        let isSearchEnabled = webSearchDefault;
 
         function init() {
+            populateProviders();
             renderChatList();
             loadSettings();
             checkConnection();
+            syncSearchUI();
+            document.getElementById('modelSelect').value = defaultModel;
             if (Object.keys(chats).length === 0) {
                 newChat();
             } else {
@@ -1445,6 +1743,9 @@
             renderChatList();
             showWelcome();
             removeAttachment();
+            document.getElementById('modelSelect').value = defaultModel;
+            isSearchEnabled = webSearchDefault;
+            syncSearchUI();
             showToast('New chat started', 'success');
         }
 
@@ -1465,7 +1766,6 @@
                 scrollToBottom();
             }
             removeAttachment();
-            if (window.innerWidth <= 768) toggleSidebar();
         }
 
         function showWelcome() {
@@ -1489,19 +1789,20 @@
         }
 
         function clearAllChats() {
-            if (!confirm('Delete all chats? This cannot be undone.')) return;
+            if (!confirm('Delete all chat history? This cannot be undone.')) return false;
             chats = {};
             saveChats();
             newChat();
             showToast('All chats cleared', 'info');
+            return true;
         }
 
         function renderChatList() {
-            const list = document.getElementById('chatList');
+            const list = document.getElementById('chatHistoryList');
             list.innerHTML = '';
             Object.values(chats).sort(function(a, b) { return b.created - a.created; }).forEach(function(chat) {
                 const div = document.createElement('div');
-                div.className = 'chat-item' + (chat.id === currentChatId ? ' active' : '');
+                div.className = 'chat-history-item' + (chat.id === currentChatId ? ' active' : '');
                 div.onclick = function() { loadChat(chat.id); };
                 div.innerHTML = '<span class="chat-icon">💬</span><span class="chat-title">' + escapeHtml(chat.title) + '</span><button class="delete-btn" onclick="deleteChat(&#34;' + chat.id + '&#34;, event)">🗑️</button>';
                 list.appendChild(div);
@@ -1551,6 +1852,22 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function updateWelcomeHeading() {
+            const headingEl = document.getElementById('welcomeHeading');
+            if (!headingEl) return;
+
+            const nickname = localStorage.getItem('profileNickname') || '';
+            const fullName = localStorage.getItem('profileName') || '';
+            const displayName = nickname || fullName;
+
+            if (displayName) {
+                // Keep "Multi-AI" styled the same way, just personalize the rest
+                headingEl.innerHTML = '<span class="gradient-text">Welcome, ' + escapeHtml(displayName) + '</span>';
+            } else {
+                headingEl.innerHTML = '<span class="gradient-text">Multi-AI</span> Chatbot';
+            }
         }
 
         function scrollToBottom() {
@@ -1670,7 +1987,10 @@
 
             const response = await fetch(backendUrl + '/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (localStorage.getItem('authToken') || '')
+                },
                 body: JSON.stringify(body)
             });
 
@@ -1758,24 +2078,53 @@
         }
 
         function openSettings() {
-            document.getElementById('settingsModal').classList.add('active');
+            document.getElementById('settingsModalOverlay').style.display = 'flex';
             loadSettings();
         }
 
         function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('active');
+            document.getElementById('settingsModalOverlay').style.display = 'none';
+        }
+
+        function populateProviders() {
+            const list = document.getElementById('providerList');
+            if (!list || list.children.length > 0) return;
+            ['OpenAI', 'Google', 'DeepSeek', 'Groq', 'BigModel'].forEach(function(p) {
+                const chip = document.createElement('span');
+                chip.className = 'settings-provider-chip';
+                chip.textContent = p;
+                list.appendChild(chip);
+            });
+        }
+
+        function populateDefaultModelSelect() {
+            const select = document.getElementById('defaultModelSelect');
+            if (!select || select.options.length > 0) return;
+            const modelSelect = document.getElementById('modelSelect');
+            for (const option of modelSelect.options) {
+                const o = document.createElement('option');
+                o.value = option.value;
+                o.textContent = option.textContent;
+                select.appendChild(o);
+            }
         }
 
         function loadSettings() {
-            const status = document.getElementById('backendStatus');
-            status.innerHTML = '<span>Connected to ' + backendUrl + '</span>';
-            status.className = 'api-status saved';
-            document.getElementById('systemPrompt').value = systemPrompt;
+            populateProviders();
+            populateDefaultModelSelect();
+            document.getElementById('backendUrlInput').value = backendUrl;
+            document.getElementById('systemPromptInput').value = systemPrompt;
+            document.getElementById('defaultModelSelect').value = defaultModel;
+            document.getElementById('webSearchDefaultToggle').classList.toggle('on', webSearchDefault);
         }
 
         function saveSettings() {
-            systemPrompt = document.getElementById('systemPrompt').value;
+            backendUrl = document.getElementById('backendUrlInput').value.trim() || 'https://multi-ai-chat-1.onrender.com';
+            localStorage.setItem('backendUrl', backendUrl);
+            systemPrompt = document.getElementById('systemPromptInput').value;
             localStorage.setItem('systemPrompt', systemPrompt);
+            defaultModel = document.getElementById('defaultModelSelect').value;
+            localStorage.setItem('defaultModel', defaultModel);
             closeSettings();
             showToast('Settings saved!', 'success');
         }
@@ -1784,11 +2133,9 @@
             // Model changed
         }
 
-        function toggleSearch() {
-            isSearchEnabled = !isSearchEnabled;
+        function syncSearchUI() {
             const status = document.getElementById('searchStatus');
             const btn = document.getElementById('searchToggle');
-            
             if (isSearchEnabled) {
                 status.style.display = 'inline';
                 btn.style.background = '#4CAF50';
@@ -1798,6 +2145,11 @@
                 btn.style.background = '';
                 btn.style.color = '';
             }
+        }
+
+        function toggleSearch() {
+            isSearchEnabled = !isSearchEnabled;
+            syncSearchUI();
         }
 
         function formatSearchResults(results) {
@@ -1838,32 +2190,213 @@
             setTimeout(function() { toast.remove(); }, 3000);
         }
 
-        function exportChat() {
-            if (!currentChatId || !chats[currentChatId]) return;
-            const chat = chats[currentChatId];
-            let text = '# ' + chat.title + '\n\n';
-            chat.messages.forEach(function(m) {
-                text += '**' + (m.role === 'user' ? 'User' : 'AI') + ':**\n' + m.content + '\n\n';
+
+        function updateLoggedInAs() {
+            const el = document.getElementById('loggedInAs');
+            const username = localStorage.getItem('authUsername');
+            if (el) el.textContent = username ? 'Logged in as ' + username : 'Not logged in';
+        }
+
+        // ============================================
+        // AUTH OVERLAY (login / signup)
+        // ============================================
+        (function() {
+            let isSignupMode = false;
+
+            const overlay = document.getElementById('authOverlay');
+            const title = document.getElementById('authTitle');
+            const subtitle = document.getElementById('authSubtitle');
+            const usernameInput = document.getElementById('authUsername');
+            const passwordInput = document.getElementById('authPassword');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const errorBox = document.getElementById('authError');
+            const switchLink = document.getElementById('authSwitchLink');
+            const switchText = document.getElementById('authSwitchText');
+
+            function showError(msg) {
+                errorBox.textContent = msg;
+                errorBox.style.display = 'block';
+            }
+            function hideError() {
+                errorBox.style.display = 'none';
+            }
+
+            function toggleMode() {
+                isSignupMode = !isSignupMode;
+                hideError();
+                if (isSignupMode) {
+                    title.textContent = 'Create your account';
+                    subtitle.textContent = 'Sign up to start using Multi-AI';
+                    submitBtn.textContent = 'Sign up';
+                    switchText.innerHTML = 'Already have an account? <span class="auth-link" id="authSwitchLink">Log in</span>';
+                } else {
+                    title.textContent = 'Welcome back';
+                    subtitle.textContent = 'Log in to continue to Multi-AI';
+                    submitBtn.textContent = 'Log in';
+                    switchText.innerHTML = 'Don\'t have an account? <span class="auth-link" id="authSwitchLink">Sign up</span>';
+                }
+                // re-bind the new span since innerHTML replaced it
+                document.getElementById('authSwitchLink').addEventListener('click', toggleMode);
+            }
+            switchLink.addEventListener('click', toggleMode);
+
+            async function submitAuth() {
+                hideError();
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+
+                if (!username || !password) {
+                    showError('Please fill in both fields');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = isSignupMode ? 'Signing up...' : 'Logging in...';
+
+                try {
+                    const endpoint = isSignupMode ? '/auth/signup' : '/auth/login';
+                    const response = await fetch(backendUrl + endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        showError(data.error || 'Something went wrong');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = isSignupMode ? 'Sign up' : 'Log in';
+                        return;
+                    }
+
+                    // Save auth token + username, then hide the auth screen
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('authUsername', data.username);
+                    overlay.style.display = 'none';
+                    updateLoggedInAs();
+                    showToast('Welcome, ' + data.username + '!', 'success');
+
+                } catch (err) {
+                    showError('Could not reach the server. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = isSignupMode ? 'Sign up' : 'Log in';
+                }
+            }
+
+            submitBtn.addEventListener('click', submitAuth);
+            passwordInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
+
+            // ---- On page load: check if already logged in ----
+            const existingToken = localStorage.getItem('authToken');
+            if (existingToken) {
+                overlay.style.display = 'none';
+            } else {
+                overlay.style.display = 'flex';
+            }
+        })();
+
+        // Collapsible sidebar toggle + settings modal wiring
+        (function() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggleBtn');
+            let collapsed = false;
+
+            toggleBtn.addEventListener('click', function() {
+                collapsed = !collapsed;
+                sidebar.classList.toggle('collapsed', collapsed);
             });
-            const blob = new Blob([text], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'chat_' + currentChatId + '.md';
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('Chat exported!', 'success');
-        }
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebarBackdrop').classList.toggle('active');
-        }
+            // --- Tab switching in settings modal ---
+            const navItems = document.querySelectorAll('.settings-nav-item');
+            const panes = document.querySelectorAll('.settings-pane');
+            navItems.forEach(function(item) {
+                item.addEventListener('click', function() {
+                    navItems.forEach(function(i) { i.classList.remove('active'); });
+                    panes.forEach(function(p) { p.classList.remove('active'); });
+                    item.classList.add('active');
+                    const pane = document.getElementById('pane-' + item.dataset.pane);
+                    if (pane) pane.classList.add('active');
+                });
+            });
 
-        document.getElementById('settingsModal').addEventListener('click', function(e) {
-            if (e.target === e.currentTarget) closeSettings();
-        });
+            function updateAvatarInitial() {
+                const nickname = localStorage.getItem('profileNickname') || localStorage.getItem('profileName') || '';
+                const el = document.getElementById('profileAvatarInitial');
+                if (el) el.textContent = nickname ? nickname.charAt(0).toUpperCase() : 'U';
+            }
 
+            // --- Modal open/close ---
+            const overlay = document.getElementById('settingsModalOverlay');
+            document.getElementById('openSettingsBtn').addEventListener('click', function() {
+                openSettings(); // populates providers + default model select + existing fields
+                document.getElementById('profileNameInput').value = localStorage.getItem('profileName') || '';
+                document.getElementById('profileNicknameInput').value = localStorage.getItem('profileNickname') || '';
+                updateAvatarInitial();
+                document.getElementById('reduceMotionToggle').classList.toggle('on', localStorage.getItem('reduceMotion') === 'true');
+            });
+            document.getElementById('closeSettingsBtn').addEventListener('click', function() {
+                closeSettings();
+            });
+            document.getElementById('settingsCancelBtn').addEventListener('click', function() {
+                closeSettings();
+            });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeSettings();
+            });
+
+            // --- Web search default toggle (persisted) ---
+            const wsToggle = document.getElementById('webSearchDefaultToggle');
+            wsToggle.addEventListener('click', function() {
+                webSearchDefault = !webSearchDefault;
+                localStorage.setItem('webSearchDefault', webSearchDefault);
+                isSearchEnabled = webSearchDefault;
+                wsToggle.classList.toggle('on', webSearchDefault);
+                syncSearchUI();
+            });
+
+            // --- Reduce motion toggle (persisted) ---
+            const reduceMotionToggle = document.getElementById('reduceMotionToggle');
+            reduceMotionToggle.addEventListener('click', function() {
+                const on = !reduceMotionToggle.classList.contains('on');
+                reduceMotionToggle.classList.toggle('on', on);
+                localStorage.setItem('reduceMotion', on);
+                document.body.classList.toggle('reduce-motion', on);
+            });
+
+            // --- Clear all chat history (destructive, from Data tab) ---
+            document.getElementById('clearAllHistoryBtn').addEventListener('click', function() {
+                if (clearAllChats()) closeSettings();
+            });
+
+            // --- Log out (from Data tab) ---
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('authUsername');
+                closeSettings();
+                document.getElementById('authOverlay').style.display = 'flex';
+                showToast('Logged out', 'info');
+            });
+
+            // --- Save settings: persist everything + sync app state ---
+            document.getElementById('settingsSaveBtn').addEventListener('click', function() {
+                saveSettings(); // persists backend url, system prompt, default model; closes modal + toast
+                localStorage.setItem('profileName', document.getElementById('profileNameInput').value.trim());
+                localStorage.setItem('profileNickname', document.getElementById('profileNicknameInput').value.trim());
+                localStorage.setItem('reduceMotion', reduceMotionToggle.classList.contains('on'));
+                updateAvatarInitial();
+                updateWelcomeHeading();
+            });
+
+            // Apply reduced-motion preference on page load
+            if (localStorage.getItem('reduceMotion') === 'true') {
+                document.body.classList.add('reduce-motion');
+            }
+
+            updateLoggedInAs();
+        })();
+
+        updateWelcomeHeading();
         init();
     </script>
 </body>
