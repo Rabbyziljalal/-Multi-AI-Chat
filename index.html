@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Multi-AI Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -43,8 +43,14 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             height: 100vh;
+            height: 100dvh; /* dynamic viewport height — accounts for mobile browser UI */
             overflow: hidden;
             display: flex;
+            /* Safe-area padding for notches / home indicator (installed PWA has no browser chrome) */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
         .gradient-text {
             background: linear-gradient(135deg, var(--cyan), var(--purple), var(--pink));
@@ -1262,13 +1268,155 @@
         .toast.error { border-left: 3px solid var(--error); }
         .toast.info { border-left: 3px solid var(--accent); }
         .toast.warning { border-left: 3px solid var(--warning); }
+        /* ============================================ */
+        /* MOBILE RESPONSIVE (off-canvas sidebar drawer) */
+        /* ============================================ */
         @media (max-width: 768px) {
-            .top-bar { padding: 0 16px; }
-            .chat-container { padding: 16px; }
-            .input-area { padding: 12px 16px 16px; }
+            /* Sidebar becomes an off-canvas drawer, not squeezed beside chat */
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                width: 85%;
+                max-width: 320px;
+                height: 100vh;
+                height: 100dvh;
+                transition: left 0.25s ease;
+                z-index: 1000;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+            }
+            .sidebar.open {
+                left: 0;
+            }
+            /* When drawer is open, add a dimmed overlay behind it */
+            .sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
+            }
+            .sidebar-backdrop.show {
+                display: block;
+            }
+
+            /* Top bar: hamburger + model selector fit on one row */
+            .top-bar { padding: 0 12px; }
+            .top-bar-left { gap: 8px; }
+            .mobile-menu-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 44px;
+                height: 44px;
+                background: none;
+                border: none;
+                color: var(--text-secondary);
+                cursor: pointer;
+                border-radius: 8px;
+                flex-shrink: 0;
+            }
+            .mobile-menu-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+            .model-selector label { display: none; }
+            .model-selector select {
+                min-width: 0;
+                width: 100%;
+                max-width: 180px;
+                font-size: 0.8rem;
+                padding: 10px 10px;
+            }
+            .connection-status { display: none; }
+
+            /* Chat messages use nearly full width */
+            .chat-container {
+                padding: 12px;
+                max-width: 100%;
+            }
+            .messages {
+                max-width: 100%;
+                padding-bottom: 20px;
+            }
+            .message-content {
+                font-size: 16px; /* not smaller — prevents iOS auto-zoom on inputs */
+            }
+            .message-content-wrapper {
+                max-width: calc(100% - 50px);
+            }
+            .message-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 0.9rem;
+            }
+
+            /* Input bar fixed at bottom, full width, above home indicator */
+            .input-area {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+                background: linear-gradient(to top, var(--bg-primary) 80%, transparent);
+                z-index: 5;
+            }
+            .input-wrapper {
+                max-width: 100%;
+            }
+            /* Ensure the message list isn't hidden behind the fixed input bar */
+            .chat-container {
+                padding-bottom: 120px;
+            }
+            /* Inputs must be 16px+ to prevent iOS auto-zoom */
+            .input-row textarea {
+                font-size: 16px;
+            }
+            .settings-input,
+            .settings-textarea,
+            .auth-input {
+                font-size: 16px;
+            }
+
+            /* 44px tap targets for icon buttons */
+            .attach-btn,
+            .send-btn {
+                width: 44px;
+                height: 44px;
+            }
+            .sidebar-toggle-btn {
+                width: 44px;
+                height: 44px;
+            }
+
             .quick-actions { grid-template-columns: 1fr; }
             .welcome-screen h1 { font-size: 1.8rem; }
-            .model-selector select { min-width: 160px; font-size: 0.8rem; }
+            .welcome-screen .subtitle { font-size: 0.95rem; padding: 0 16px; }
+
+            /* Settings modal fits on phone */
+            .settings-modal {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+                flex-direction: column;
+            }
+            .settings-nav {
+                width: 100%;
+                flex-direction: row;
+                border-right: none;
+                border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+                padding: 8px;
+                overflow-x: auto;
+            }
+            .settings-nav-item { flex-shrink: 0; }
+            .settings-modal-header { padding: 14px 16px; }
+            .settings-modal-body { padding: 16px; }
+        }
+        /* Desktop: hide the mobile hamburger button */
+        .mobile-menu-btn { display: none; }
+        .sidebar-backdrop { display: none; }
+        @media (min-width: 769px) {
+            .mobile-menu-btn { display: none; }
+            .sidebar-backdrop { display: none; }
         }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -1349,10 +1497,18 @@
         </div>
     </aside>
 
+    <!-- Mobile sidebar backdrop (closes drawer on outside tap) -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <!-- MAIN -->
     <main class="main">
         <div class="top-bar">
             <div class="top-bar-left">
+                <button class="mobile-menu-btn" id="mobileMenuBtn" title="Menu" aria-label="Open menu">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
                 <div class="model-selector">
                     <label>Model</label>
                     <select id="modelSelect" onchange="changeModel()">
@@ -2404,11 +2560,41 @@
         (function() {
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.getElementById('sidebarToggleBtn');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
             let collapsed = false;
 
             toggleBtn.addEventListener('click', function() {
                 collapsed = !collapsed;
                 sidebar.classList.toggle('collapsed', collapsed);
+            });
+
+            // --- Mobile: off-canvas drawer open/close ---
+            function openMobileSidebar() {
+                sidebar.classList.add('open');
+                if (sidebarBackdrop) sidebarBackdrop.classList.add('show');
+            }
+            function closeMobileSidebar() {
+                sidebar.classList.remove('open');
+                if (sidebarBackdrop) sidebarBackdrop.classList.remove('show');
+            }
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', function() {
+                    if (sidebar.classList.contains('open')) {
+                        closeMobileSidebar();
+                    } else {
+                        openMobileSidebar();
+                    }
+                });
+            }
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+            }
+            // Close the drawer after selecting a chat or starting a new one
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.chat-history-item') || e.target.closest('#newChatBtn')) {
+                    closeMobileSidebar();
+                }
             });
 
             // --- Tab switching in settings modal ---
