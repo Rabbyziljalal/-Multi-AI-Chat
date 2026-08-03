@@ -6,6 +6,12 @@
     <title>Multi-AI Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0a0a0d">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Multi-AI">
     <style>
         :root {
             --bg-primary: #0a0a14;
@@ -222,6 +228,26 @@
         .sidebar.collapsed .sidebar-logged-in-as {
             display: none; /* hide when sidebar is collapsed, same as other labels */
         }
+        .sidebar-install-btn {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: none;
+            border: none;
+            width: 100%;
+            font-size: 13.5px;
+            margin-top: 4px;
+        }
+        .sidebar-install-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .sidebar.collapsed .sidebar-install-btn {
+            justify-content: center;
+            padding: 9px 0;
+        }
+        .sidebar.collapsed .sidebar-install-btn .btn-label { display: none; }
         .main {
             flex: 1;
             display: flex;
@@ -1316,6 +1342,10 @@
                 <span class="btn-label">Settings</span>
             </button>
             <div class="sidebar-logged-in-as" id="sidebarLoggedInAs"></div>
+            <button class="sidebar-install-btn" id="installAppBtn" onclick="installApp()">
+                <span>📲</span>
+                <span class="btn-label">Install App</span>
+            </button>
         </div>
     </aside>
 
@@ -2492,6 +2522,39 @@
 
         updateWelcomeHeading();
         init();
+
+        // ============================================
+        // PWA: SERVICE WORKER REGISTRATION
+        // ============================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function() { console.log('Service worker registered'); })
+                    .catch(function(err) { console.error('Service worker registration failed:', err); });
+            });
+        }
+
+        // ============================================
+        // PWA: INSTALL APP BUTTON (optional but nice UX)
+        // ============================================
+        let deferredInstallPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            const installBtn = document.getElementById('installAppBtn');
+            if (installBtn) installBtn.style.display = 'flex';
+        });
+
+        function installApp() {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then(function() {
+                deferredInstallPrompt = null;
+                const installBtn = document.getElementById('installAppBtn');
+                if (installBtn) installBtn.style.display = 'none';
+            });
+        }
     </script>
 </body>
 </html>
