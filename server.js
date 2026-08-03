@@ -22,9 +22,28 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 
+// ============================================
+// MULTI-KEY ROTATION FOR GEMINI
+// ============================================
+const GEMINI_KEYS = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_2
+].filter(Boolean); // drops any that aren't set
+
+let geminiKeyIndex = 0;
+
+function getNextGeminiKey() {
+  if (GEMINI_KEYS.length === 0) return null;
+  const key = GEMINI_KEYS[geminiKeyIndex % GEMINI_KEYS.length];
+  geminiKeyIndex++;
+  return key;
+}
+
+// Keep the existing API_KEYS object for other providers, but for gemini
+// we'll pull from getNextGeminiKey() at call time instead of a fixed value.
 const API_KEYS = {
   openai: process.env.OPENAI_API_KEY,
-  gemini: process.env.GEMINI_API_KEY,
+  gemini: null, // resolved per-request via getNextGeminiKey()
   bigmodel: process.env.BIGMODEL_API_KEY,
   deepseek: process.env.DEEPSEEK_API_KEY,
   groq: process.env.GROQ_API_KEY,
@@ -356,6 +375,92 @@ app.delete('/api/memory', requireAuth, async (req, res) => {
 });
 
 // ============================================
+// HELPER: try a provider, return { ok, response, apiKeyUsed }
+// ============================================
+
+async function tryProvider(provider, model, messages, imageBase64, imageMimeType, pdfText) {
+  let apiKey;
+
+  if (provider === 'gemini') {
+    apiKey = getNextGeminiKey();
+    if (!apiKey) return { ok: false, status: 500, errText: 'No Gemini key configured' };
+  } else {
+    apiKey = API_KEYS[provider];
+    if (!apiKey) return { ok: false, status: 500, errText: `API key for ${provider} not configured` };
+  }
+
+  let response;
+  try {
+    if (provider === 'gemini') {
+      response = await handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText);
+    } else {
+      response = await handleOpenAICompatible(provider, model, apiKey, messages, imageBase64, imageMimeType, pdfText);
+    }
+  } catch (err) {
+    return { ok: false, status: 500, errText: err.message };
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    return { ok: false, status: response.status, errText };
+  }
+
+  console.log('Used provider:', provider, provider === 'gemini' ? `(gemini key index ${geminiKeyIndex - 1})` : '');
+  return { ok: true, response };
+}
+
+// ============================================
+// FALLBACK CHAIN when a provider fails with quota/model errors
+// ============================================
+
+// Maps each provider to a sensible default model to use as a fallback
+const FALLBACK_MODEL_MAP = {
+  gemini: 'gemini-flash-latest',
+  groq: 'llama-3.3-70b-versatile',
+  bigmodel: 'glm-4-flash',
+};
+
+const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel'];
+
+function isRetryableError(status) {
+  return status === 429 || status === 404 || status === 503;
+}
+
+async function callWithFallback(originalProvider, originalModel, messages, imageBase64, imageMimeType, pdfText) {
+  // Try the user's originally selected provider first
+  let result = await tryProvider(originalProvider, originalModel, messages, imageBase64, imageMimeType, pdfText);
+  if (result.ok) return result;
+
+  if (!isRetryableError(result.status)) {
+    // Not a quota/availability issue (e.g. bad request) — don't waste calls retrying elsewhere
+    return result;
+  }
+
+  console.log(`Provider ${originalProvider} failed (status ${result.status}), trying fallback chain...`);
+
+  // Try each fallback provider in order, skipping the one that already failed
+  for (const provider of FALLBACK_ORDER) {
+    if (provider === originalProvider) continue;
+    if (!API_KEYS[provider] && provider !== 'gemini') continue; // skip unconfigured providers
+    if (provider === 'gemini' && GEMINI_KEYS.length === 0) continue;
+
+    const fallbackModel = FALLBACK_MODEL_MAP[provider];
+    console.log(`Trying fallback provider: ${provider} (${fallbackModel})`);
+
+    result = await tryProvider(provider, fallbackModel, messages, imageBase64, imageMimeType, pdfText);
+    if (result.ok) return result;
+
+    if (!isRetryableError(result.status)) {
+      // This fallback failed for a different reason — stop trying further fallbacks
+      return result;
+    }
+  }
+
+  // Everything failed
+  return result;
+}
+
+// ============================================
 // AI CHAT ROUTE (auth required, per-user memory + webSearch support)
 // ============================================
 app.post('/chat', requireAuth, async (req, res) => {
@@ -363,11 +468,6 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   if (!provider || !model || !messages) {
     return res.status(400).json({ error: 'Missing provider, model, or messages' });
-  }
-
-  const apiKey = API_KEYS[provider];
-  if (!apiKey) {
-    return res.status(500).json({ error: `API key for ${provider} not configured on server` });
   }
 
   let finalMessages = messages;
@@ -416,33 +516,29 @@ app.post('/chat', requireAuth, async (req, res) => {
     });
   }
 
+  // ---- Call with automatic fallback ----
+  const result = await callWithFallback(provider, model, finalMessages, imageBase64, imageMimeType, pdfText);
+
+  if (!result.ok) {
+    console.error('All providers failed:', result.errText);
+    return res.status(result.status || 500).json({
+      error: 'All AI providers are currently at capacity, please try again in a moment.'
+    });
+  }
+
   try {
-    let response;
-
-    if (provider === 'gemini') {
-      response = await handleGemini(model, apiKey, finalMessages, imageBase64, imageMimeType, pdfText);
-    } else {
-      response = await handleOpenAICompatible(provider, model, apiKey, finalMessages, imageBase64, imageMimeType, pdfText);
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: errText });
-    }
-
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    // Send sources as a custom header before streaming starts (frontend can read this)
     res.setHeader('X-Search-Sources', encodeURIComponent(JSON.stringify(sources)));
 
-    const reader = response.body;
+    const reader = result.response.body;
     reader.on('data', (chunk) => res.write(chunk));
     reader.on('end', () => res.end());
     reader.on('error', () => res.end());
 
   } catch (error) {
-    console.error('Proxy error:', error);
+    console.error('Streaming error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -585,5 +681,8 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('🚀 Multi-AI Proxy Server running on port', PORT);
-  console.log('Configured providers:', Object.keys(API_KEYS).filter(k => API_KEYS[k]).join(', ') || 'NONE');
+  const configuredProviders = Object.keys(API_KEYS).filter(k => API_KEYS[k]);
+  if (GEMINI_KEYS.length > 0) configuredProviders.push('gemini');
+  console.log('Configured providers:', configuredProviders.join(', ') || 'NONE');
+  console.log(`Gemini keys configured: ${GEMINI_KEYS.length} (rotation enabled)`);
 });

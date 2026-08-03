@@ -1317,7 +1317,7 @@
                         <option value="openai:gpt-4o-mini">OpenAI - GPT-4o Mini</option>
                         <option value="openai:gpt-4o">OpenAI - GPT-4o</option>
                         <option value="gemini:gemini-flash-latest">Google - Gemini Flash Latest</option>
-                        <option value="gemini:gemini-2.5-pro">Google - Gemini 2.5 Pro</option>
+                        <option value="gemini:gemini-2.5-pro" disabled>Google - Gemini 2.5 Pro (Paid only)</option>
                         <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
                         <option value="bigmodel:glm-4">BigModel - GLM-4</option>
                         <option value="bigmodel:glm-4-plus">BigModel - GLM-4 Plus</option>
@@ -1616,7 +1616,14 @@
             loadSettings();
             checkConnection();
             syncSearchUI();
-            document.getElementById('modelSelect').value = defaultModel;
+            // If the saved default model is disabled (e.g. paid-only), fall back to a valid one
+            const modelSelect = document.getElementById('modelSelect');
+            const savedOption = Array.from(modelSelect.options).find(function(o) { return o.value === defaultModel; });
+            if (!savedOption || savedOption.disabled) {
+                defaultModel = 'gemini:gemini-flash-latest';
+                localStorage.setItem('defaultModel', defaultModel);
+            }
+            modelSelect.value = defaultModel;
             if (Object.keys(chats).length === 0) {
                 newChat();
             } else {
@@ -1743,7 +1750,14 @@
             renderChatList();
             showWelcome();
             removeAttachment();
-            document.getElementById('modelSelect').value = defaultModel;
+            // If the saved default model is disabled (e.g. paid-only), fall back to a valid one
+            const modelSelect = document.getElementById('modelSelect');
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            if (!selectedOption || selectedOption.disabled) {
+                defaultModel = 'gemini:gemini-flash-latest';
+                localStorage.setItem('defaultModel', defaultModel);
+            }
+            modelSelect.value = defaultModel;
             isSearchEnabled = webSearchDefault;
             syncSearchUI();
             showToast('New chat started', 'success');
@@ -2102,6 +2116,7 @@
             if (!select || select.options.length > 0) return;
             const modelSelect = document.getElementById('modelSelect');
             for (const option of modelSelect.options) {
+                if (option.disabled) continue; // skip disabled (e.g. paid-only) models
                 const o = document.createElement('option');
                 o.value = option.value;
                 o.textContent = option.textContent;
