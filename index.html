@@ -2149,14 +2149,6 @@
                 name: currentAttachment.name
             } : null;
 
-            // Snapshot the raw attachment data for the backend request BEFORE clearing
-            // the input state, so the image/PDF is still included in the fetch body.
-            const attachmentRequestData = currentAttachment ? {
-                type: currentAttachment.type,
-                data: currentAttachment.data,
-                mimeType: currentAttachment.mimeType
-            } : null;
-
             appendMessage('user', displayContent, msgAttachment);
             chats[currentChatId].messages.push({
                 role: 'user',
@@ -2174,10 +2166,6 @@
             input.style.height = 'auto';
             saveChats();
 
-            // Clear the attachment preview/state immediately after it's been captured,
-            // so it doesn't linger in the input box during streaming or get resent.
-            removeAttachment();
-
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
             document.getElementById('sendBtn').disabled = true;
@@ -2188,7 +2176,7 @@
             botMsg.querySelector('.message-content').appendChild(typing);
 
             try {
-                await streamFromBackend(provider, model, text, botMsg, attachmentRequestData);
+                await streamFromBackend(provider, model, text, botMsg);
             } catch (err) {
                 botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
                 showToast('Error: ' + err.message, 'error');
@@ -2199,7 +2187,7 @@
             }
         }
 
-        async function streamFromBackend(provider, model, text, botMsg, attachment) {
+        async function streamFromBackend(provider, model, text, botMsg) {
             // Web search is handled server-side via webSearch flag
             if (isSearchEnabled) {
                 addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
@@ -2221,14 +2209,12 @@
                 webSearch: isSearchEnabled
             };
 
-            // Use the snapshot passed in — the input attachment state is cleared right after sending,
-            // so it can't linger in the input box or be silently resent with the next message.
-            if (attachment) {
-                if (attachment.type === 'image') {
-                    body.imageBase64 = attachment.data;
-                    body.imageMimeType = attachment.mimeType;
-                } else if (attachment.type === 'pdf') {
-                    body.pdfText = attachment.data;
+            if (currentAttachment) {
+                if (currentAttachment.type === 'image') {
+                    body.imageBase64 = currentAttachment.data;
+                    body.imageMimeType = currentAttachment.mimeType;
+                } else if (currentAttachment.type === 'pdf') {
+                    body.pdfText = currentAttachment.data;
                 }
             }
 
