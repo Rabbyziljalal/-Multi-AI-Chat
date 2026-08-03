@@ -1314,8 +1314,8 @@
                 <div class="model-selector">
                     <label>Model</label>
                     <select id="modelSelect" onchange="changeModel()">
-                        <option value="openai:gpt-4o-mini">OpenAI - GPT-4o Mini</option>
-                        <option value="openai:gpt-4o">OpenAI - GPT-4o</option>
+                        <option value="openai:gpt-4o-mini" disabled>OpenAI - GPT-4o Mini (Not configured)</option>
+                        <option value="openai:gpt-4o" disabled>OpenAI - GPT-4o (Not configured)</option>
                         <option value="gemini:gemini-flash-latest">Google - Gemini Flash Latest</option>
                         <option value="gemini:gemini-2.5-pro" disabled>Google - Gemini 2.5 Pro (Paid only)</option>
                         <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
@@ -1624,12 +1624,9 @@
                 localStorage.setItem('defaultModel', defaultModel);
             }
             modelSelect.value = defaultModel;
-            if (Object.keys(chats).length === 0) {
-                newChat();
-            } else {
-                currentChatId = Object.keys(chats)[0];
-                loadChat(currentChatId);
-            }
+            // Always start fresh — don't auto-resume the last active chat
+            currentChatId = null;
+            showWelcome();
         }
 
         async function checkConnection() {
@@ -1740,6 +1737,9 @@
         function removeAttachment() {
             currentAttachment = null;
             renderAttachmentPreview();
+            // Reset the file input so selecting the same file again triggers the change event
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) fileInput.value = '';
         }
 
         function newChat() {
@@ -1909,6 +1909,15 @@
             const input = document.getElementById('userInput');
             const text = input.value.trim();
             if ((!text && !currentAttachment) || isGenerating) return;
+
+            // Create a new chat if none is active (e.g. after page load with welcome screen)
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
 
             const modelVal = document.getElementById('modelSelect').value;
             const parts = modelVal.split(':');
