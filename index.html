@@ -211,6 +211,17 @@
             padding: 9px 0;
         }
         .sidebar.collapsed .sidebar-settings-btn .btn-label { display: none; }
+        .sidebar-logged-in-as {
+            padding: 4px 10px 2px;
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sidebar.collapsed .sidebar-logged-in-as {
+            display: none; /* hide when sidebar is collapsed, same as other labels */
+        }
         .main {
             flex: 1;
             display: flex;
@@ -1304,6 +1315,7 @@
                 </svg>
                 <span class="btn-label">Settings</span>
             </button>
+            <div class="sidebar-logged-in-as" id="sidebarLoggedInAs"></div>
         </div>
     </aside>
 
@@ -2228,10 +2240,15 @@
 
 
         function updateLoggedInAs() {
-            const el = document.getElementById('loggedInAs');
-            const username = localStorage.getItem('authUsername');
-            if (el) el.textContent = username ? 'Logged in as ' + username : 'Not logged in';
+            const username = localStorage.getItem('authUsername') || '';
+            // Sidebar indicator below the Settings button (always visible when expanded)
+            const el = document.getElementById('sidebarLoggedInAs');
+            if (el) el.textContent = username ? username : '';
+            // Settings Data tab label (kept in sync with the sidebar)
+            const settingsLabelEl = document.getElementById('loggedInAs');
+            if (settingsLabelEl) settingsLabelEl.textContent = username ? 'Logged in as ' + username : 'Not logged in';
         }
+        window.updateLoggedInAs = updateLoggedInAs;
 
         // ============================================
         // AUTH OVERLAY (login / signup)
@@ -2443,6 +2460,8 @@
                 renderChatList();
                 showWelcome();
                 removeAttachment();
+                // Clear the sidebar logged-in indicator back to empty
+                updateLoggedInAs();
                 // Reset auth form to login mode and clear inputs
                 if (typeof resetAuthForm === 'function') resetAuthForm();
                 closeSettings();
