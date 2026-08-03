@@ -1321,8 +1321,8 @@
                         <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
                         <option value="bigmodel:glm-4">BigModel - GLM-4</option>
                         <option value="bigmodel:glm-4-plus">BigModel - GLM-4 Plus</option>
-                        <option value="deepseek:deepseek-chat">DeepSeek - Chat</option>
-                        <option value="deepseek:deepseek-reasoner">DeepSeek - Reasoner</option>
+                        <option value="deepseek:deepseek-chat" disabled>DeepSeek - Chat (Not configured)</option>
+                        <option value="deepseek:deepseek-reasoner" disabled>DeepSeek - Reasoner (Not configured)</option>
                         <option value="groq:llama-3.1-8b-instant">Groq - Llama 3.1 8B</option>
                         <option value="groq:llama-3.3-70b-versatile">Groq - Llama 3.3 70B</option>
                         <option value="groq:mixtral-8x7b-32768">Groq - Mixtral 8x7B</option>
@@ -1601,7 +1601,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let currentChatId = null;
-        let chats = JSON.parse(localStorage.getItem('chats') || '{}');
+        let chats = {};
         let backendUrl = localStorage.getItem('backendUrl') || 'https://multi-ai-chat-1.onrender.com';
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
         let defaultModel = localStorage.getItem('defaultModel') || 'openai:gpt-4o-mini';
@@ -1611,6 +1611,7 @@
         let isSearchEnabled = webSearchDefault;
 
         function init() {
+            loadChats(); // load this account's chat history from its per-user key
             populateProviders();
             renderChatList();
             loadSettings();
@@ -1823,8 +1824,18 @@
             });
         }
 
+        function getChatsStorageKey() {
+            const username = localStorage.getItem('authUsername');
+            return username ? ('chats_' + username) : 'chats_guest';
+        }
+
         function saveChats() {
-            localStorage.setItem('chats', JSON.stringify(chats));
+            localStorage.setItem(getChatsStorageKey(), JSON.stringify(chats));
+        }
+
+        function loadChats() {
+            const raw = localStorage.getItem(getChatsStorageKey());
+            chats = raw ? JSON.parse(raw) : {};
         }
 
         function appendMessage(role, content, attachment, animate) {
@@ -1872,8 +1883,9 @@
             const headingEl = document.getElementById('welcomeHeading');
             if (!headingEl) return;
 
-            const nickname = localStorage.getItem('profileNickname') || '';
-            const fullName = localStorage.getItem('profileName') || '';
+            const username = localStorage.getItem('authUsername') || '';
+            const nickname = username ? (localStorage.getItem('profileNickname_' + username) || '') : '';
+            const fullName = username ? (localStorage.getItem('profileName_' + username) || '') : '';
             const displayName = nickname || fullName;
 
             if (displayName) {
@@ -2310,8 +2322,11 @@
                     // Save auth token + username, then hide the auth screen
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('authUsername', data.username);
+                    loadChats();        // load THIS account's chat history from its scoped key
+                    renderChatList();   // display it in the sidebar
                     overlay.style.display = 'none';
                     updateLoggedInAs();
+                    updateWelcomeHeading(); // refresh with this account's name
                     showToast('Welcome, ' + data.username + '!', 'success');
 
                 } catch (err) {
@@ -2363,17 +2378,21 @@
             });
 
             function updateAvatarInitial() {
-                const nickname = localStorage.getItem('profileNickname') || localStorage.getItem('profileName') || '';
+                const username = localStorage.getItem('authUsername') || '';
+                const nickname = username ? (localStorage.getItem('profileNickname_' + username) || '') : '';
+                const fullName = username ? (localStorage.getItem('profileName_' + username) || '') : '';
+                const displayName = nickname || fullName || '';
                 const el = document.getElementById('profileAvatarInitial');
-                if (el) el.textContent = nickname ? nickname.charAt(0).toUpperCase() : 'U';
+                if (el) el.textContent = displayName ? displayName.charAt(0).toUpperCase() : 'U';
             }
 
             // --- Modal open/close ---
             const overlay = document.getElementById('settingsModalOverlay');
             document.getElementById('openSettingsBtn').addEventListener('click', function() {
                 openSettings(); // populates providers + default model select + existing fields
-                document.getElementById('profileNameInput').value = localStorage.getItem('profileName') || '';
-                document.getElementById('profileNicknameInput').value = localStorage.getItem('profileNickname') || '';
+                const currentUsername = localStorage.getItem('authUsername') || '';
+                document.getElementById('profileNameInput').value = currentUsername ? (localStorage.getItem('profileName_' + currentUsername) || '') : '';
+                document.getElementById('profileNicknameInput').value = currentUsername ? (localStorage.getItem('profileNickname_' + currentUsername) || '') : '';
                 updateAvatarInitial();
                 document.getElementById('reduceMotionToggle').classList.toggle('on', localStorage.getItem('reduceMotion') === 'true');
             });
@@ -2417,10 +2436,10 @@
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('authUsername');
                 console.log('After clear:', localStorage.getItem('authToken'));
-                // Reset in-memory chat state so no stale data from the previous account remains
+                // Reset in-memory chat state — do NOT call saveChats() here, that would
+                // overwrite this user's real saved history with an empty object
                 chats = {};
                 currentChatId = null;
-                saveChats();
                 renderChatList();
                 showWelcome();
                 removeAttachment();
@@ -2434,8 +2453,11 @@
             // --- Save settings: persist everything + sync app state ---
             document.getElementById('settingsSaveBtn').addEventListener('click', function() {
                 saveSettings(); // persists backend url, system prompt, default model; closes modal + toast
-                localStorage.setItem('profileName', document.getElementById('profileNameInput').value.trim());
-                localStorage.setItem('profileNickname', document.getElementById('profileNicknameInput').value.trim());
+                const savedUsername = localStorage.getItem('authUsername') || '';
+                if (savedUsername) {
+                    localStorage.setItem('profileName_' + savedUsername, document.getElementById('profileNameInput').value.trim());
+                    localStorage.setItem('profileNickname_' + savedUsername, document.getElementById('profileNicknameInput').value.trim());
+                }
                 localStorage.setItem('reduceMotion', reduceMotionToggle.classList.contains('on'));
                 updateAvatarInitial();
                 updateWelcomeHeading();
