@@ -513,37 +513,154 @@
             font-size: 0.72rem;
             color: var(--text-muted);
             padding: 0 4px;
+            flex-wrap: wrap;
+            animation: metaFadeIn 0.3s ease;
+        }
+        @keyframes metaFadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .message.user .message-meta { justify-content: flex-end; }
-        .copy-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            transition: all 0.2s;
-            font-family: inherit;
+        .msg-actions-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
         }
-        .copy-btn:hover { color: var(--cyan); background: rgba(0,212,255,0.08); }
+        .copy-btn,
         .msg-action-btn {
             background: none;
             border: none;
             color: var(--text-muted);
             cursor: pointer;
-            padding: 3px 8px;
+            padding: 5px;
             border-radius: 6px;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             transition: all 0.2s;
+            font-family: inherit;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            min-width: 30px;
+            min-height: 30px;
+            flex-shrink: 0;
         }
+        .copy-btn svg,
+        .msg-action-btn svg {
+            width: 15px;
+            height: 15px;
+            display: block;
+            transition: transform 0.2s;
+        }
+        .copy-btn:hover,
         .msg-action-btn:hover { color: var(--cyan); background: rgba(0,212,255,0.08); }
+        .copy-btn:hover svg,
+        .msg-action-btn:hover svg { transform: scale(1.1); }
+        .copy-btn:focus-visible,
+        .msg-action-btn:focus-visible {
+            outline: 2px solid var(--cyan);
+            outline-offset: 2px;
+        }
         .msg-action-btn.active-like { color: var(--success); }
         .msg-action-btn.active-dislike { color: var(--error); }
         .msg-action-btn.speaking { color: var(--cyan); animation: pulse-dot 1s infinite; }
+        .copy-btn.copied { color: var(--success); }
+        .msg-action-btn.regenerating svg {
+            animation: spin 1s linear infinite;
+        }
+        .msg-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        /* -------- Message Actions v2: more menu, edit mode, bookmark, share highlight -------- */
+        .msg-more-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .msg-action-btn.msg-more-btn.open { color: var(--cyan); background: rgba(0,212,255,0.08); }
+        .msg-more-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            z-index: 60;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            padding: 4px;
+            min-width: 190px;
+            max-width: 240px;
+            animation: menuIn 0.15s ease;
+        }
+        .msg-more-menu.open { display: block; }
+        @keyframes menuIn {
+            from { opacity: 0; transform: translateY(4px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .msg-more-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-family: inherit;
+            text-align: left;
+            padding: 8px 10px;
+            border-radius: 7px;
+            cursor: pointer;
+            min-height: 36px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .msg-more-menu-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .msg-more-menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .msg-more-menu-item.bookmarked,
+        .msg-action-btn.bookmarked { color: var(--warning); }
+        .msg-time-btn { cursor: default; }
+        .msg-edit-textarea {
+            width: 100%;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-strong);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .msg-edit-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .msg-edit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 7px;
+            font-size: 0.78rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .msg-edit-btn svg { width: 13px; height: 13px; }
+        .msg-edit-btn.msg-edit-save:hover { border-color: var(--success); color: var(--success); }
+        .msg-edit-btn.msg-edit-cancel:hover { border-color: var(--error); color: var(--error); }
+        .msg-highlight .message-content { animation: msgHighlight 2s ease; }
+        @keyframes msgHighlight {
+            0%, 100% { box-shadow: none; }
+            20%, 80% { box-shadow: 0 0 0 2px var(--cyan), 0 0 24px rgba(0,212,255,0.25); }
+        }
         .attached-image {
             max-width: 320px;
             max-height: 320px;
@@ -1402,6 +1519,12 @@
                 width: 44px;
                 height: 44px;
             }
+            /* Message action buttons: at least 36x36px touch targets */
+            .copy-btn,
+            .msg-action-btn {
+                min-width: 36px;
+                min-height: 36px;
+            }
 
             .quick-actions { grid-template-columns: 1fr; }
             .welcome-screen h1 { font-size: 1.8rem; }
@@ -1992,7 +2115,9 @@
                 welcome.style.display = 'none';
                 msgs.style.display = 'flex';
                 msgs.innerHTML = '';
-                chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false); });
+                chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
+                // Stop any speech still playing from a previously viewed chat
+                stopSpeech();
                 scrollToBottom();
             }
             removeAttachment();
@@ -2003,10 +2128,20 @@
             const msgs = document.getElementById('messages');
             msgs.style.display = 'none';
             msgs.innerHTML = '';
+            stopSpeech();
         }
 
         function deleteChat(id, event) {
             event.stopPropagation();
+            // Clean up per-message rating data stored in localStorage for this chat's assistant messages
+            const chat = chats[id];
+            if (chat && chat.messages) {
+                chat.messages.forEach(function(m) {
+                    if (m.role === 'assistant' && m.msgId) {
+                        localStorage.removeItem('rating_' + m.msgId);
+                    }
+                });
+            }
             delete chats[id];
             saveChats();
             if (currentChatId === id) {
@@ -2020,6 +2155,16 @@
 
         function clearAllChats() {
             if (!confirm('Delete all chat history? This cannot be undone.')) return false;
+            // Clean up all per-message rating data stored in localStorage
+            Object.values(chats).forEach(function(chat) {
+                if (chat && chat.messages) {
+                    chat.messages.forEach(function(m) {
+                        if (m.role === 'assistant' && m.msgId) {
+                            localStorage.removeItem('rating_' + m.msgId);
+                        }
+                    });
+                }
+            });
             chats = {};
             saveChats();
             newChat();
@@ -2053,7 +2198,7 @@
             chats = raw ? JSON.parse(raw) : {};
         }
 
-        function appendMessage(role, content, attachment, animate) {
+        function appendMessage(role, content, attachment, animate, msgData) {
             const msgs = document.getElementById('messages');
             const welcome = document.getElementById('welcomeScreen');
             welcome.style.display = 'none';
@@ -2071,6 +2216,59 @@
             }
 
             div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div></div>';
+
+            // For assistant messages restored from saved chats, recreate the full action row
+            if (role === 'bot' && msgData) {
+                // Restore or persist the timestamp for this message
+                if (!msgData.timestamp) {
+                    msgData.timestamp = Date.now();
+                    if (currentChatId && chats[currentChatId]) {
+                        const idx = chats[currentChatId].messages.indexOf(msgData);
+                        if (idx !== -1) {
+                            chats[currentChatId].messages[idx].timestamp = msgData.timestamp;
+                            saveChats();
+                        }
+                    }
+                }
+                let msgId = msgData.msgId;
+                if (!msgId) {
+                    // Legacy chat data without a saved msgId — generate one ONCE and persist it
+                    msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                    msgData.msgId = msgId;
+                    if (currentChatId && chats[currentChatId]) {
+                        const idx = chats[currentChatId].messages.indexOf(msgData);
+                        if (idx !== -1) {
+                            chats[currentChatId].messages[idx].msgId = msgId;
+                            saveChats();
+                        }
+                    }
+                }
+
+                // Fall back to the currently selected model for legacy messages that lack provider/model info
+                const parts = (document.getElementById('modelSelect').value || ':').split(':');
+                const provider = msgData.provider || (parts[0] || 'AI');
+                const model = msgData.model || (parts[1] || '');
+
+                const meta = document.createElement('div');
+                meta.className = 'message-meta';
+                meta.innerHTML = createMessageActions(provider, model, content, msgId, msgData.timestamp);
+                div.querySelector('.message-content-wrapper').appendChild(meta);
+                div.dataset.msgId = msgId;
+                div.dataset.fullText = content;
+
+                // Restore like/dislike state from localStorage (current) or the saved chat data
+                const savedRating = localStorage.getItem('rating_' + msgId) || msgData.rating || null;
+                if (savedRating) {
+                    const btn = document.getElementById(savedRating + '_' + msgId);
+                    if (btn) btn.classList.add('active-' + savedRating);
+                }
+                // Restore bookmark state from the saved chat data
+                if (msgData.bookmarked) {
+                    const bmItem = div.querySelector('.bookmark-item');
+                    if (bmItem) bmItem.classList.add('bookmarked');
+                }
+            }
+
             if (!animate) div.style.animation = 'none';
             msgs.appendChild(div);
             scrollToBottom();
@@ -2186,6 +2384,7 @@
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
             document.getElementById('sendBtn').disabled = true;
+            setRegenerateButtonsDisabled(true);
 
             const typing = document.createElement('div');
             typing.className = 'typing-indicator';
@@ -2200,6 +2399,7 @@
             } finally {
                 isGenerating = false;
                 document.getElementById('sendBtn').disabled = false;
+                setRegenerateButtonsDisabled(false);
                 removeAttachment();
             }
         }
@@ -2311,66 +2511,290 @@
                 }
             }
 
-            chats[currentChatId].messages.push({ role: 'assistant', content: fullText });
+            // Generate a stable msgId ONCE and persist it in the chat data so it survives reloads
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            const savedRating = localStorage.getItem('rating_' + msgId);
+            chats[currentChatId].messages.push({ role: 'assistant', content: fullText, msgId: msgId, provider: provider, model: model, rating: savedRating || null, timestamp: Date.now() });
             saveChats();
 
-            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
             const meta = document.createElement('div');
             meta.className = 'message-meta';
-            meta.innerHTML =
-                '<span>' + provider.toUpperCase() + ' - ' + model + '</span>' +
-                '<button class="copy-btn" onclick="copyText(this, \'' + escapeHtml(fullText).replace(/'/g, "\\'") + '\')">Copy</button>' +
-                '<button class="msg-action-btn" id="speak_' + msgId + '" onclick="toggleSpeak(\'' + msgId + '\', this)" title="Read aloud">🔊</button>' +
-                '<button class="msg-action-btn" id="like_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'like\')" title="Good response">👍</button>' +
-                '<button class="msg-action-btn" id="dislike_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'dislike\')" title="Bad response">👎</button>' +
-                '<button class="msg-action-btn" onclick="regenerateMessage(this)" title="Regenerate">🔄</button>';
+            meta.innerHTML = createMessageActions(provider, model, fullText, msgId, chats[currentChatId].messages[chats[currentChatId].messages.length - 1].timestamp);
             botMsg.querySelector('.message-content-wrapper').appendChild(meta);
             botMsg.dataset.msgId = msgId;
             botMsg.dataset.fullText = fullText; // stored for Read Aloud without re-parsing HTML
 
             // Restore saved like/dislike state if this message was rated before (e.g. after reload)
-            const savedRating = localStorage.getItem('rating_' + msgId);
             if (savedRating) {
                 document.getElementById(savedRating + '_' + msgId).classList.add('active-' + savedRating);
             }
         }
 
+        // ---- SVG icons (Lucide/feather style) for message action buttons ----
+        const SVG_COPY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        const SVG_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        const SVG_VOLUME = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+        const SVG_THUMBS_UP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>';
+        const SVG_THUMBS_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM15 2h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"></path></svg>';
+        const SVG_ROTATE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
+        const SVG_MORE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>';
+        const SVG_EDIT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+        const SVG_RETRY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
+        const SVG_MARKDOWN = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 1.5 17V7.5A2.5 2.5 0 0 1 4 5h16a2.5 2.5 0 0 1 2.5 2.5V17a2.5 2.5 0 0 1-2.5 2.5z"></path><polyline points="1.5 8.5 6.5 13.5 11.5 8.5"></polyline><line x1="6.5" y1="13.5" x2="6.5" y2="17.5"></line><line x1="13.5" y1="17.5" x2="13.5" y2="8.5"></line><line x1="13.5" y1="11.5" x2="17.5" y2="11.5"></line><line x1="13.5" y1="14.5" x2="16.5" y2="14.5"></line></svg>';
+        const SVG_TEXT = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"></path><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>';
+        const SVG_SHARE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>';
+        const SVG_BOOKMARK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>';
+        const SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+        const SVG_SAVE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>';
+        const SVG_X = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+        // ---- Reusable: builds the message-meta action row for any assistant message ----
+        function createMessageActions(provider, model, fullText, msgId, timestamp) {
+            const ts = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return '<span>' + provider.toUpperCase() + ' - ' + model + '</span>' +
+                '<div class="msg-actions-row">' +
+                '<button class="msg-action-btn msg-time-btn" title="' + ts + '" aria-label="Response time ' + ts + '">' + SVG_CLOCK + '</button>' +
+                '<button class="copy-btn" onclick="copyText(this, \'' + escapeHtml(fullText).replace(/'/g, "\\'") + '\')" title="Copy" aria-label="Copy response">' + SVG_COPY + '</button>' +
+                '<button class="msg-action-btn" id="speak_' + msgId + '" onclick="toggleSpeak(\'' + msgId + '\', this)" title="Read aloud" aria-label="Read response aloud">' + SVG_VOLUME + '</button>' +
+                '<button class="msg-action-btn" id="like_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'like\')" title="Good response" aria-label="Rate this response as good">' + SVG_THUMBS_UP + '</button>' +
+                '<button class="msg-action-btn" id="dislike_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'dislike\')" title="Bad response" aria-label="Rate this response as bad">' + SVG_THUMBS_DOWN + '</button>' +
+                '<button class="msg-action-btn regenerate-btn" onclick="regenerateMessage(this)" title="Regenerate" aria-label="Regenerate response">' + SVG_ROTATE + '</button>' +
+                '<span class="msg-more-wrap">' +
+                '<button class="msg-action-btn msg-more-btn" onclick="toggleMoreMenu(this)" title="More actions" aria-label="More actions" aria-haspopup="true" aria-expanded="false">' + SVG_MORE + '</button>' +
+                '<div class="msg-more-menu">' +
+                '<button class="msg-more-menu-item" onclick="editMessage(\'' + msgId + '\')">' + SVG_EDIT + 'Edit message</button>' +
+                '<button class="msg-more-menu-item" onclick="retryFromMessage(\'' + msgId + '\')">' + SVG_RETRY + 'Retry from here</button>' +
+                '<button class="msg-more-menu-item" onclick="copyAsMarkdown(\'' + msgId + '\')">' + SVG_MARKDOWN + 'Copy as Markdown</button>' +
+                '<button class="msg-more-menu-item" onclick="copyAsPlainText(\'' + msgId + '\')">' + SVG_TEXT + 'Copy as Plain Text</button>' +
+                '<button class="msg-more-menu-item" onclick="shareMessage(\'' + msgId + '\')">' + SVG_SHARE + 'Share message link</button>' +
+                '<button class="msg-more-menu-item bookmark-item" onclick="toggleBookmark(\'' + msgId + '\')">' + SVG_BOOKMARK + 'Bookmark response</button>' +
+                '</div>' +
+                '</span>' +
+                '</div>';
+        }
+
+        // Guard against stacked copy timers: store the timer id on the button
         function copyText(btn, text) {
             navigator.clipboard.writeText(text).then(function() {
-                btn.textContent = 'Copied';
-                setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+                if (btn._copyTimer) clearTimeout(btn._copyTimer);
+                btn.innerHTML = SVG_CHECK;
+                btn.classList.add('copied');
+                btn.title = 'Copied';
+                btn.setAttribute('aria-label', 'Copied');
+                btn._copyTimer = setTimeout(function() {
+                    btn.innerHTML = SVG_COPY;
+                    btn.classList.remove('copied');
+                    btn.title = 'Copy';
+                    btn.setAttribute('aria-label', 'Copy response');
+                    btn._copyTimer = null;
+                }, 2000);
             });
+        }
+
+        // ---- Message Actions v2: more menu, edit, retry, copy variants, share, bookmark ----
+        function closeAllMoreMenus() {
+            document.querySelectorAll('.msg-more-menu.open').forEach(function(m) { m.classList.remove('open'); });
+            document.querySelectorAll('.msg-more-btn.open').forEach(function(b) { b.classList.remove('open'); b.setAttribute('aria-expanded', 'false'); });
+        }
+
+        function toggleMoreMenu(btn) {
+            const wrap = btn.closest('.msg-more-wrap');
+            const menu = wrap ? wrap.querySelector('.msg-more-menu') : null;
+            const isOpen = menu && menu.classList.contains('open');
+            closeAllMoreMenus();
+            if (!isOpen && menu) {
+                menu.classList.add('open');
+                btn.classList.add('open');
+                btn.setAttribute('aria-expanded', 'true');
+            }
+        }
+
+        // Close any open more-menu when clicking elsewhere
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.msg-more-wrap')) closeAllMoreMenus();
+        });
+
+        function findMsgData(msgId) {
+            if (!currentChatId || !chats[currentChatId]) return null;
+            return chats[currentChatId].messages.find(function(m) { return m.msgId === msgId; }) || null;
+        }
+
+        function findMsgEl(msgId) {
+            return document.querySelector('[data-msg-id="' + msgId + '"]');
+        }
+
+        function editMessage(msgId) {
+            closeAllMoreMenus();
+            const msg = findMsgData(msgId);
+            const el = findMsgEl(msgId);
+            if (!msg || !el) return;
+            const contentDiv = el.querySelector('.message-content');
+            const original = msg.content;
+            contentDiv.innerHTML = '<textarea class="msg-edit-textarea">' + escapeHtml(original) + '</textarea>' +
+                '<div class="msg-edit-actions">' +
+                '<button class="msg-edit-btn msg-edit-save" onclick="saveEdit(\'' + msgId + '\')">' + SVG_SAVE + 'Save</button>' +
+                '<button class="msg-edit-btn msg-edit-cancel" onclick="cancelEdit(\'' + msgId + '\', this)">' + SVG_X + 'Cancel</button>' +
+                '</div>';
+            const ta = contentDiv.querySelector('.msg-edit-textarea');
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+        }
+
+        function saveEdit(msgId) {
+            const el = findMsgEl(msgId);
+            const msg = findMsgData(msgId);
+            if (!el || !msg) return;
+            const ta = el.querySelector('.msg-edit-textarea');
+            const newText = ta ? ta.value : '';
+            msg.content = newText;
+            msg.edited = true;
+            saveChats();
+            el.querySelector('.message-content').innerHTML = formatContent(newText);
+            el.dataset.fullText = newText;
+            showToast('Message updated', 'success');
+        }
+
+        function cancelEdit(msgId, btn) {
+            const el = findMsgEl(msgId);
+            const msg = findMsgData(msgId);
+            if (!el || !msg) return;
+            el.querySelector('.message-content').innerHTML = formatContent(msg.content);
+        }
+
+        function retryFromMessage(msgId) {
+            closeAllMoreMenus();
+            if (isGenerating) return;
+            const chat = chats[currentChatId];
+            if (!chat) return;
+            const idx = chat.messages.findIndex(function(m) { return m.msgId === msgId; });
+            if (idx === -1) return;
+            // Remove this message and everything after it
+            const removed = chat.messages.splice(idx);
+            removed.forEach(function(m) {
+                if (m.role === 'assistant' && m.msgId) localStorage.removeItem('rating_' + m.msgId);
+            });
+            saveChats();
+            // Re-render the chat up to this point
+            const msgs = document.getElementById('messages');
+            msgs.innerHTML = '';
+            chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
+            // If the removed message was a user message, resend it; if assistant, resend the last user message
+            const lastUser = chat.messages[chat.messages.length - 1];
+            if (!lastUser || lastUser.role !== 'user') return;
+            const modelVal = document.getElementById('modelSelect').value;
+            const parts = modelVal.split(':');
+            const provider = parts[0];
+            const model = parts[1];
+            const botMsg = appendMessage('bot', '', null);
+            isGenerating = true;
+            document.getElementById('sendBtn').disabled = true;
+            setRegenerateButtonsDisabled(true);
+            const typing = document.createElement('div');
+            typing.className = 'typing-indicator';
+            typing.innerHTML = '<span></span><span></span><span></span>';
+            botMsg.querySelector('.message-content').appendChild(typing);
+            streamFromBackend(provider, model, lastUser.content, botMsg, null)
+                .catch(function(err) {
+                    botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                    showToast('Error: ' + err.message, 'error');
+                })
+                .finally(function() {
+                    isGenerating = false;
+                    document.getElementById('sendBtn').disabled = false;
+                    setRegenerateButtonsDisabled(false);
+                });
+        }
+
+        function copyAsMarkdown(msgId) {
+            closeAllMoreMenus();
+            const msg = findMsgData(msgId);
+            if (!msg) return;
+            navigator.clipboard.writeText(msg.content).then(function() {
+                showToast('Copied as Markdown', 'success');
+            });
+        }
+
+        function copyAsPlainText(msgId) {
+            closeAllMoreMenus();
+            const msg = findMsgData(msgId);
+            if (!msg) return;
+            const plain = msg.content.replace(/```(\w+)?\n?([\s\S]*?)```/g, '$2').replace(/`([^`]+)`/g, '$1').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1').replace(/\n{3,}/g, '\n\n');
+            navigator.clipboard.writeText(plain).then(function() {
+                showToast('Copied as Plain Text', 'success');
+            });
+        }
+
+        function shareMessage(msgId) {
+            closeAllMoreMenus();
+            const msg = findMsgData(msgId);
+            if (!msg) return;
+            const url = new URL(window.location.href);
+            url.searchParams.set('chat', currentChatId);
+            url.searchParams.set('msg', msgId);
+            navigator.clipboard.writeText(url.toString()).then(function() {
+                showToast('Share link copied to clipboard', 'success');
+            });
+        }
+
+        function toggleBookmark(msgId) {
+            const msg = findMsgData(msgId);
+            if (!msg) return;
+            msg.bookmarked = !msg.bookmarked;
+            saveChats();
+            const el = findMsgEl(msgId);
+            if (el) {
+                const item = el.querySelector('.bookmark-item');
+                if (item) item.classList.toggle('bookmarked', msg.bookmarked);
+            }
+            showToast(msg.bookmarked ? 'Bookmarked' : 'Bookmark removed', 'info');
         }
 
         // ---- Read Aloud (browser built-in text-to-speech, free, no API needed) ----
         let currentUtterance = null;
+        let speechGeneration = 0;
+
+        function stopSpeech() {
+            speechGeneration++;
+            if (currentUtterance) {
+                speechSynthesis.cancel();
+                currentUtterance = null;
+            }
+            document.querySelectorAll('.msg-action-btn.speaking').forEach(function(b) { b.classList.remove('speaking'); });
+        }
+
         function toggleSpeak(msgId, btn) {
             // If already speaking this message, stop it
             if (currentUtterance && btn.classList.contains('speaking')) {
-                speechSynthesis.cancel();
-                btn.classList.remove('speaking');
-                currentUtterance = null;
+                stopSpeech();
                 return;
             }
             // Stop any other message currently being read
-            speechSynthesis.cancel();
-            document.querySelectorAll('.msg-action-btn.speaking').forEach(function(b) { b.classList.remove('speaking'); });
+            stopSpeech();
+            speechGeneration++;
 
             const botMsg = document.querySelector('[data-msg-id="' + msgId + '"]');
             const text = botMsg ? botMsg.dataset.fullText : '';
             if (!text) return;
 
-            currentUtterance = new SpeechSynthesisUtterance(text);
-            currentUtterance.rate = 1.0;
-            currentUtterance.onend = function() {
+            const myGen = speechGeneration;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.onend = function() {
+                if (myGen !== speechGeneration) return; // a newer action superseded this one
                 btn.classList.remove('speaking');
-                currentUtterance = null;
+                if (currentUtterance === utterance) currentUtterance = null;
             };
+            utterance.onerror = function() {
+                if (myGen !== speechGeneration) return;
+                btn.classList.remove('speaking');
+                if (currentUtterance === utterance) currentUtterance = null;
+            };
+            currentUtterance = utterance;
             btn.classList.add('speaking');
-            speechSynthesis.speak(currentUtterance);
+            speechSynthesis.speak(utterance);
         }
 
-        // ---- Thumbs Up / Down (stored locally, per message) ----
+        // ---- Thumbs Up / Down (stored locally + persisted in chat data, per message) ----
         function rateMessage(msgId, rating) {
             const likeBtn = document.getElementById('like_' + msgId);
             const dislikeBtn = document.getElementById('dislike_' + msgId);
@@ -2381,13 +2805,37 @@
                 localStorage.removeItem('rating_' + msgId);
                 likeBtn.classList.remove('active-like');
                 dislikeBtn.classList.remove('active-dislike');
+                // Also clear from chat data so it stays removed across reloads/imports
+                if (currentChatId && chats[currentChatId]) {
+                    const msg = chats[currentChatId].messages.find(function(m) { return m.msgId === msgId; });
+                    if (msg) {
+                        msg.rating = null;
+                        saveChats();
+                    }
+                }
                 return;
             }
 
             localStorage.setItem('rating_' + msgId, rating);
             likeBtn.classList.toggle('active-like', rating === 'like');
             dislikeBtn.classList.toggle('active-dislike', rating === 'dislike');
+            // Persist rating inside the chat data so it survives account switches and imported chats
+            if (currentChatId && chats[currentChatId]) {
+                const msg = chats[currentChatId].messages.find(function(m) { return m.msgId === msgId; });
+                if (msg) {
+                    msg.rating = rating;
+                    saveChats();
+                }
+            }
             showToast(rating === 'like' ? 'Thanks for the feedback!' : 'Thanks, noted.', 'info');
+        }
+
+        // ---- Helper: disable/enable all Regenerate buttons + spinner state ----
+        function setRegenerateButtonsDisabled(disabled) {
+            document.querySelectorAll('.regenerate-btn').forEach(function(b) {
+                b.disabled = disabled;
+                b.classList.toggle('regenerating', disabled);
+            });
         }
 
         // ---- Regenerate: re-run the last user message through the same model ----
@@ -2399,6 +2847,8 @@
             // Remove the last assistant message (both from data and from the DOM)
             const lastMsg = chat.messages[chat.messages.length - 1];
             if (lastMsg.role !== 'assistant') return; // safety check
+            // Clean up orphaned localStorage rating key for the removed message
+            if (lastMsg.msgId) localStorage.removeItem('rating_' + lastMsg.msgId);
             chat.messages.pop();
             saveChats();
 
@@ -2417,6 +2867,7 @@
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
             document.getElementById('sendBtn').disabled = true;
+            setRegenerateButtonsDisabled(true);
 
             const typing = document.createElement('div');
             typing.className = 'typing-indicator';
@@ -2431,6 +2882,7 @@
                 .finally(function() {
                     isGenerating = false;
                     document.getElementById('sendBtn').disabled = false;
+                    setRegenerateButtonsDisabled(false);
                 });
         }
 
@@ -2832,6 +3284,27 @@
 
         updateWelcomeHeading();
         init();
+
+        // ---- Deep-link handling: open a shared chat + highlight the referenced message ----
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const chatId = params.get('chat');
+            const msgId = params.get('msg');
+            if (chatId && chats[chatId]) {
+                loadChat(chatId);
+                if (msgId) {
+                    // Scroll to and highlight the referenced message
+                    setTimeout(function() {
+                        const el = document.querySelector('[data-msg-id="' + msgId + '"]');
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.add('msg-highlight');
+                            setTimeout(function() { el.classList.remove('msg-highlight'); }, 2500);
+                        }
+                    }, 300);
+                }
+            }
+        })();
 
         // ============================================
         // PWA: SERVICE WORKER REGISTRATION
