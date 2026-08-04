@@ -2199,6 +2199,10 @@
         }
 
         function appendMessage(role, content, attachment, animate, msgData) {
+            // Normalize the stored 'assistant' role to 'bot' so restored messages
+            // get the correct DOM class, avatar, and action-row rendering.
+            if (role === 'assistant') role = 'bot';
+
             const msgs = document.getElementById('messages');
             const welcome = document.getElementById('welcomeScreen');
             welcome.style.display = 'none';
