@@ -527,6 +527,23 @@
             font-family: inherit;
         }
         .copy-btn:hover { color: var(--cyan); background: rgba(0,212,255,0.08); }
+        .msg-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .msg-action-btn:hover { color: var(--cyan); background: rgba(0,212,255,0.08); }
+        .msg-action-btn.active-like { color: var(--success); }
+        .msg-action-btn.active-dislike { color: var(--error); }
+        .msg-action-btn.speaking { color: var(--cyan); animation: pulse-dot 1s infinite; }
         .attached-image {
             max-width: 320px;
             max-height: 320px;
@@ -2297,10 +2314,25 @@
             chats[currentChatId].messages.push({ role: 'assistant', content: fullText });
             saveChats();
 
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
             const meta = document.createElement('div');
             meta.className = 'message-meta';
-            meta.innerHTML = '<span>' + provider.toUpperCase() + ' - ' + model + '</span><button class="copy-btn" onclick="copyText(this, \'' + escapeHtml(fullText).replace(/'/g, "\\'") + '\')">Copy</button>';
+            meta.innerHTML =
+                '<span>' + provider.toUpperCase() + ' - ' + model + '</span>' +
+                '<button class="copy-btn" onclick="copyText(this, \'' + escapeHtml(fullText).replace(/'/g, "\\'") + '\')">Copy</button>' +
+                '<button class="msg-action-btn" id="speak_' + msgId + '" onclick="toggleSpeak(\'' + msgId + '\', this)" title="Read aloud">🔊</button>' +
+                '<button class="msg-action-btn" id="like_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'like\')" title="Good response">👍</button>' +
+                '<button class="msg-action-btn" id="dislike_' + msgId + '" onclick="rateMessage(\'' + msgId + '\', \'dislike\')" title="Bad response">👎</button>' +
+                '<button class="msg-action-btn" onclick="regenerateMessage(this)" title="Regenerate">🔄</button>';
             botMsg.querySelector('.message-content-wrapper').appendChild(meta);
+            botMsg.dataset.msgId = msgId;
+            botMsg.dataset.fullText = fullText; // stored for Read Aloud without re-parsing HTML
+
+            // Restore saved like/dislike state if this message was rated before (e.g. after reload)
+            const savedRating = localStorage.getItem('rating_' + msgId);
+            if (savedRating) {
+                document.getElementById(savedRating + '_' + msgId).classList.add('active-' + savedRating);
+            }
         }
 
         function copyText(btn, text) {
@@ -2308,6 +2340,98 @@
                 btn.textContent = 'Copied';
                 setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
             });
+        }
+
+        // ---- Read Aloud (browser built-in text-to-speech, free, no API needed) ----
+        let currentUtterance = null;
+        function toggleSpeak(msgId, btn) {
+            // If already speaking this message, stop it
+            if (currentUtterance && btn.classList.contains('speaking')) {
+                speechSynthesis.cancel();
+                btn.classList.remove('speaking');
+                currentUtterance = null;
+                return;
+            }
+            // Stop any other message currently being read
+            speechSynthesis.cancel();
+            document.querySelectorAll('.msg-action-btn.speaking').forEach(function(b) { b.classList.remove('speaking'); });
+
+            const botMsg = document.querySelector('[data-msg-id="' + msgId + '"]');
+            const text = botMsg ? botMsg.dataset.fullText : '';
+            if (!text) return;
+
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.rate = 1.0;
+            currentUtterance.onend = function() {
+                btn.classList.remove('speaking');
+                currentUtterance = null;
+            };
+            btn.classList.add('speaking');
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // ---- Thumbs Up / Down (stored locally, per message) ----
+        function rateMessage(msgId, rating) {
+            const likeBtn = document.getElementById('like_' + msgId);
+            const dislikeBtn = document.getElementById('dislike_' + msgId);
+            const current = localStorage.getItem('rating_' + msgId);
+
+            if (current === rating) {
+                // Clicking the same rating again removes it
+                localStorage.removeItem('rating_' + msgId);
+                likeBtn.classList.remove('active-like');
+                dislikeBtn.classList.remove('active-dislike');
+                return;
+            }
+
+            localStorage.setItem('rating_' + msgId, rating);
+            likeBtn.classList.toggle('active-like', rating === 'like');
+            dislikeBtn.classList.toggle('active-dislike', rating === 'dislike');
+            showToast(rating === 'like' ? 'Thanks for the feedback!' : 'Thanks, noted.', 'info');
+        }
+
+        // ---- Regenerate: re-run the last user message through the same model ----
+        function regenerateMessage(btn) {
+            if (isGenerating) return;
+            const chat = chats[currentChatId];
+            if (!chat || chat.messages.length < 2) return;
+
+            // Remove the last assistant message (both from data and from the DOM)
+            const lastMsg = chat.messages[chat.messages.length - 1];
+            if (lastMsg.role !== 'assistant') return; // safety check
+            chat.messages.pop();
+            saveChats();
+
+            const msgsContainer = document.getElementById('messages');
+            if (msgsContainer.lastElementChild) msgsContainer.lastElementChild.remove();
+
+            // Find the last user message to resend
+            const lastUserMsg = chat.messages[chat.messages.length - 1];
+            if (!lastUserMsg || lastUserMsg.role !== 'user') return;
+
+            const modelVal = document.getElementById('modelSelect').value;
+            const parts = modelVal.split(':');
+            const provider = parts[0];
+            const model = parts[1];
+
+            const botMsg = appendMessage('bot', '', null);
+            isGenerating = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            const typing = document.createElement('div');
+            typing.className = 'typing-indicator';
+            typing.innerHTML = '<span></span><span></span><span></span>';
+            botMsg.querySelector('.message-content').appendChild(typing);
+
+            streamFromBackend(provider, model, lastUserMsg.content, botMsg, null)
+                .catch(function(err) {
+                    botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                    showToast('Error: ' + err.message, 'error');
+                })
+                .finally(function() {
+                    isGenerating = false;
+                    document.getElementById('sendBtn').disabled = false;
+                });
         }
 
         function openSettings() {
