@@ -49,6 +49,17 @@ const API_KEYS = {
   groq: process.env.GROQ_API_KEY,
 };
 
+// ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
+// Some older frontend code paths may still send the full data URL prefix. Providers
+// expect clean base64, so strip it defensively before sending to any vision model.
+function stripDataUrlPrefix(base64) {
+  if (typeof base64 !== 'string') return base64;
+  const commaIndex = base64.indexOf(',');
+  return base64.startsWith('data:') && commaIndex !== -1
+    ? base64.slice(commaIndex + 1)
+    : base64;
+}
+
 // ============================================
 // AUTH SYSTEM (username + password, no email)
 // ============================================
@@ -567,10 +578,11 @@ async function handleGemini(model, apiKey, messages, imageBase64, imageMimeType,
 
       // Add image if this is the last user message and image is attached
       if (isLastUser && imageBase64) {
+        const cleanBase64 = stripDataUrlPrefix(imageBase64);
         parts.push({
           inlineData: {
             mimeType: imageMimeType || 'image/jpeg',
-            data: imageBase64
+            data: cleanBase64
           }
         });
       }
@@ -637,6 +649,7 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
       if (isLastUser && imageBase64) {
         if (supportsVision(provider, model)) {
           // Use vision format
+          const cleanBase64 = stripDataUrlPrefix(imageBase64);
           processedMessages.push({
             role: 'user',
             content: [
@@ -644,7 +657,7 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:${imageMimeType || 'image/jpeg'};base64,${imageBase64}`,
+                  url: `data:${imageMimeType || 'image/jpeg'};base64,${cleanBase64}`,
                   detail: 'high'
                 }
               }
