@@ -390,9 +390,9 @@ async function tryProvider(provider, model, messages, imageBase64, imageMimeType
   }
 
   let response;
-  try {
-    if (provider === 'gemini') {
-      response = await handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText);
+   try {
+     if (provider === 'gemini') {
+       response = await handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText);
     } else {
       response = await handleOpenAICompatible(provider, model, apiKey, messages, imageBase64, imageMimeType, pdfText);
     }
@@ -473,18 +473,17 @@ app.post('/chat', requireAuth, async (req, res) => {
   let finalMessages = messages;
   let sources = [];
 
-  // ---- Inject this user's saved memory ----
+  // ---- Build a single combined system message (memory + web search) ----
+  const systemParts = [];
+
+  // Inject this user's saved memory
   const memoryFacts = await getMemory(req.username);
   console.log('Memory fetched for', req.username, ':', memoryFacts);
   if (memoryFacts.length > 0) {
-    const memoryContext = {
-      role: 'system',
-      content: `You know the following facts about this user from previous conversations. Treat these as true and answer questions about the user directly and confidently using this information — do not say you don't know or don't have access to past conversations:\n${memoryFacts.map(f => `- ${f}`).join('\n')}`
-    };
-    finalMessages = [memoryContext, ...finalMessages];
+    systemParts.push(`You know the following facts about this user from previous conversations. Treat these as true and answer questions about the user directly and confidently using this information — do not say you don't know or don't have access to past conversations:\n${memoryFacts.map(f => `- ${f}`).join('\n')}`);
   }
 
-  // ---- Web search injection (existing logic) ----
+  // Web search injection
   if (webSearch) {
     try {
       const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
@@ -497,15 +496,14 @@ app.post('/chat', requireAuth, async (req, res) => {
         .map((r, i) => `[${i + 1}] ${r.title}\n${r.content}\nSource: ${r.url}`)
         .join('\n\n');
 
-      const searchSystemMsg = {
-        role: 'system',
-        content: `You have access to the following up-to-date web search results. Use them to answer the user's question accurately. Cite sources using [1], [2] etc. where relevant. If not relevant, answer using your own knowledge instead.\n\nWeb Search Results:\n${context}`
-      };
-
-      finalMessages.splice(finalMessages.length - 1, 0, searchSystemMsg);
+      systemParts.push(`You have access to the following up-to-date web search results. Use them to answer the user's question accurately. Cite sources using [1], [2] etc. where relevant. If not relevant, answer using your own knowledge instead.\n\nWeb Search Results:\n${context}`);
     } catch (err) {
       console.error('Web search failed, proceeding without it:', err.message);
     }
+  }
+
+  if (systemParts.length > 0) {
+    finalMessages = [{ role: 'system', content: systemParts.join('\n\n---\n\n') }, ...messages];
   }
 
   // ---- Background: extract & save new memory fact for this user ----
