@@ -395,6 +395,112 @@ app.delete('/api/memory', requireAuth, async (req, res) => {
 });
 
 // ============================================
+// CHAT STORAGE (per-user, Redis-backed)
+// ============================================
+// chat:<username>:<chatId>   -> JSON string of the full chat object
+// user_chat_ids:<username>   -> Redis Set of this user's chat IDs
+
+function chatKey(username, chatId) {
+  return `chat:${username}:${chatId}`;
+}
+function userChatIdsKey(username) {
+  return `user_chat_ids:${username}`;
+}
+
+// ---- List all chats for a user (summaries only, for the sidebar) ----
+app.get('/api/chats', requireAuth, async (req, res) => {
+  try {
+    const chatIds = await redisCommand(['SMEMBERS', userChatIdsKey(req.username)]);
+    if (!chatIds || chatIds.length === 0) {
+      return res.json({ success: true, chats: [] });
+    }
+
+    // Fetch all chats in parallel
+    const chatStrings = await Promise.all(
+      chatIds.map(id => redisCommand(['GET', chatKey(req.username, id)]))
+    );
+
+    const summaries = chatStrings
+      .filter(Boolean)
+      .map(str => {
+        const chat = JSON.parse(str);
+        return {
+          id: chat.id,
+          title: chat.title || 'New Chat',
+          updatedAt: chat.updatedAt || chat.createdAt || 0
+        };
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt); // most recent first
+
+    res.json({ success: true, chats: summaries });
+  } catch (err) {
+    console.error('List chats failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to load chats' });
+  }
+});
+
+// ---- Get one full chat (with all messages) ----
+app.get('/api/chats/:chatId', requireAuth, async (req, res) => {
+  try {
+    const raw = await redisCommand(['GET', chatKey(req.username, req.params.chatId)]);
+    if (!raw) return res.status(404).json({ success: false, error: 'Chat not found' });
+    res.json({ success: true, chat: JSON.parse(raw) });
+  } catch (err) {
+    console.error('Get chat failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to load chat' });
+  }
+});
+
+// ---- Save/update a chat (full object: id, title, messages, timestamps) ----
+app.post('/api/chats/:chatId', requireAuth, async (req, res) => {
+  try {
+    const chatId = req.params.chatId;
+    const chat = req.body.chat;
+    if (!chat) return res.status(400).json({ success: false, error: 'Missing chat data' });
+
+    chat.id = chatId;
+    chat.updatedAt = Date.now();
+    if (!chat.createdAt) chat.createdAt = chat.updatedAt;
+
+    await redisCommand(['SET', chatKey(req.username, chatId), JSON.stringify(chat)]);
+    await redisCommand(['SADD', userChatIdsKey(req.username), chatId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Save chat failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to save chat' });
+  }
+});
+
+// ---- Delete a chat ----
+app.delete('/api/chats/:chatId', requireAuth, async (req, res) => {
+  try {
+    const chatId = req.params.chatId;
+    await redisCommand(['DEL', chatKey(req.username, chatId)]);
+    await redisCommand(['SREM', userChatIdsKey(req.username), chatId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete chat failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to delete chat' });
+  }
+});
+
+// ---- Delete ALL chats for a user ("Clear all chat history") ----
+app.delete('/api/chats', requireAuth, async (req, res) => {
+  try {
+    const chatIds = await redisCommand(['SMEMBERS', userChatIdsKey(req.username)]);
+    if (chatIds && chatIds.length > 0) {
+      await Promise.all(chatIds.map(id => redisCommand(['DEL', chatKey(req.username, id)])));
+    }
+    await redisCommand(['DEL', userChatIdsKey(req.username)]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Clear all chats failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to clear chats' });
+  }
+});
+
+// ============================================
 // HELPER: try a provider, return { ok, response, apiKeyUsed }
 // ============================================
 

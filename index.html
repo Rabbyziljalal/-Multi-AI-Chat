@@ -1705,7 +1705,7 @@
                         <option value="deepseek:deepseek-reasoner" disabled>DeepSeek - Reasoner (Not configured)</option>
                         <option value="groq:llama-3.1-8b-instant">Groq - Llama 3.1 8B</option>
                         <option value="groq:llama-3.3-70b-versatile">Groq - Llama 3.3 70B</option>
-                        <option value="groq:mixtral-8x7b-32768">Groq - Mixtral 8x7B</option>
+                        <option value="groq:mixtral-8x7b-32768" disabled>Groq - Mixtral 8x7B (Discontinued)</option>
                     </select>
                 </div>
                 <div class="connection-status connecting" id="connStatus">
@@ -1807,7 +1807,7 @@
                     </div>
                 </div>
             </div>
-            <div class="input-hint">Connected to Render backend - Chat history stored locally - No API keys in browser</div>
+            <div class="input-hint">Connected to Render backend - Chat history stored securely on server - No API keys in browser</div>
         </div>
     </main>
 
@@ -1955,7 +1955,7 @@
                     <div class="settings-pane" id="pane-data">
                         <div class="settings-section">
                             <div class="settings-section-title">Chat history</div>
-                            <div class="settings-section-desc">All chat history is stored locally in your browser, not on any server.</div>
+                            <div class="settings-section-desc">All chat history is stored securely on the server, scoped to your account.</div>
                             <button class="settings-danger-btn" id="clearAllHistoryBtn">Clear all chat history</button>
                         </div>
                         <div class="settings-section">
@@ -1981,7 +1981,8 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let currentChatId = null;
-        let chats = {};
+        let chatSummaries = []; // sidebar list: [{id, title, updatedAt}]
+        let chats = {};         // full chat objects, populated lazily as opened: { [chatId]: {id, title, messages, ...} }
         let backendUrl = localStorage.getItem('backendUrl') || 'https://multi-ai-chat-1.onrender.com';
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
         let defaultModel = localStorage.getItem('defaultModel') || 'openai:gpt-4o-mini';
@@ -1990,8 +1991,8 @@
         let currentAttachment = null;
         let isSearchEnabled = webSearchDefault;
 
-        function init() {
-            loadChats(); // load this account's chat history from its per-user key
+        async function init() {
+            await loadChats(); // load this account's chat history from the server
             populateProviders();
             renderChatList();
             loadSettings();
@@ -2188,25 +2189,58 @@
             showToast('New chat started', 'success');
         }
 
-        function loadChat(id) {
-            currentChatId = id;
-            const chat = chats[id];
-            if (!chat) return;
-            renderChatList();
-            const msgs = document.getElementById('messages');
-            const welcome = document.getElementById('welcomeScreen');
-            if (chat.messages.length === 0) {
-                showWelcome();
-            } else {
-                welcome.style.display = 'none';
-                msgs.style.display = 'flex';
-                msgs.innerHTML = '';
-                chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
-                // Stop any speech still playing from a previously viewed chat
-                stopSpeech();
-                scrollToBottom();
+        async function loadChat(id) {
+            // Already loaded this session? Don't re-fetch.
+            if (chats[id]) {
+                currentChatId = id;
+                renderChatList();
+                const chat = chats[id];
+                const msgs = document.getElementById('messages');
+                const welcome = document.getElementById('welcomeScreen');
+                if (chat.messages.length === 0) {
+                    showWelcome();
+                } else {
+                    welcome.style.display = 'none';
+                    msgs.style.display = 'flex';
+                    msgs.innerHTML = '';
+                    chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
+                    stopSpeech();
+                    scrollToBottom();
+                }
+                removeAttachment();
+                return;
             }
-            removeAttachment();
+
+            try {
+                const response = await fetch(backendUrl + '/api/chats/' + id, {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    chats[id] = data.chat;
+                    currentChatId = id;
+                    renderChatList();
+                    const chat = data.chat;
+                    const msgs = document.getElementById('messages');
+                    const welcome = document.getElementById('welcomeScreen');
+                    if (chat.messages.length === 0) {
+                        showWelcome();
+                    } else {
+                        welcome.style.display = 'none';
+                        msgs.style.display = 'flex';
+                        msgs.innerHTML = '';
+                        chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
+                        stopSpeech();
+                        scrollToBottom();
+                    }
+                    removeAttachment();
+                } else {
+                    showToast('Could not load that chat', 'error');
+                }
+            } catch (err) {
+                console.error('Failed to load chat:', err);
+                showToast('Could not load that chat', 'error');
+            }
         }
 
         function showWelcome() {
@@ -2217,63 +2251,71 @@
             stopSpeech();
         }
 
-        function deleteChat(id, event) {
+        async function deleteChat(id, event) {
             event.stopPropagation();
             if (!confirm('Delete this chat?')) return;
-            // Clean up per-message rating data stored in localStorage for this chat's assistant messages
-            const chat = chats[id];
-            if (chat && chat.messages) {
-                chat.messages.forEach(function(m) {
-                    if (m.role === 'assistant' && m.msgId) {
-                        localStorage.removeItem('rating_' + m.msgId);
-                    }
+
+            try {
+                const response = await fetch(backendUrl + '/api/chats/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
                 });
+                const data = await response.json();
+                if (data.success) {
+                    delete chats[id];
+                    chatSummaries = chatSummaries.filter(function(c) { return c.id !== id; });
+                    renderChatList();
+                    if (currentChatId === id) {
+                        currentChatId = null;
+                        showWelcome();
+                    }
+                    showToast('Chat deleted', 'info');
+                } else {
+                    showToast('Could not delete chat', 'error');
+                }
+            } catch (err) {
+                console.error('Failed to delete chat:', err);
+                showToast('Could not delete chat', 'error');
             }
-            delete chats[id];
-            saveChats();
-            if (currentChatId === id) {
-                const remaining = Object.keys(chats);
-                if (remaining.length > 0) loadChat(remaining[0]);
-                else newChat();
-            }
-            renderChatList();
-            showToast('Chat deleted', 'info');
         }
 
-        function clearAllChats() {
-            if (!confirm('Delete all chat history? This cannot be undone.')) return false;
-            // Clean up all per-message rating data stored in localStorage
-            Object.values(chats).forEach(function(chat) {
-                if (chat && chat.messages) {
-                    chat.messages.forEach(function(m) {
-                        if (m.role === 'assistant' && m.msgId) {
-                            localStorage.removeItem('rating_' + m.msgId);
-                        }
-                    });
+        async function clearAllChats() {
+            if (!confirm('Delete ALL chat history? This cannot be undone.')) return false;
+
+            try {
+                const response = await fetch(backendUrl + '/api/chats', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    chats = {};
+                    chatSummaries = [];
+                    currentChatId = null;
+                    renderChatList();
+                    showWelcome();
+                    showToast('All chats deleted', 'info');
+                    return true;
                 }
-            });
-            chats = {};
-            saveChats();
-            newChat();
-            showToast('All chats cleared', 'info');
-            return true;
+                showToast('Could not clear chats', 'error');
+                return false;
+            } catch (err) {
+                console.error('Failed to clear all chats:', err);
+                showToast('Could not clear chats', 'error');
+                return false;
+            }
         }
 
         function renderChatList() {
             const list = document.getElementById('chatHistoryList');
             list.innerHTML = '';
-            Object.values(chats).sort(function(a, b) { return b.created - a.created; }).forEach(function(chat) {
+            chatSummaries.forEach(function(summary) {
                 const div = document.createElement('div');
-                div.className = 'chat-history-item' + (chat.id === currentChatId ? ' active' : '');
-                div.onclick = function() { loadChat(chat.id); };
-                div.innerHTML = '<span class="chat-icon">💬</span><span class="chat-title">' + escapeHtml(chat.title) + '</span><button class="delete-btn" onclick="deleteChat(&#34;' + chat.id + '&#34;, event)">🗑️</button>';
+                div.className = 'chat-history-item' + (summary.id === currentChatId ? ' active' : '');
+                div.onclick = function() { loadChat(summary.id); };
+                div.innerHTML = '<span class="chat-icon">💬</span><span class="chat-title">' + escapeHtml(summary.title) + '</span><button class="delete-btn" onclick="deleteChat(&#34;' + summary.id + '&#34;, event)">🗑️</button>';
                 list.appendChild(div);
             });
-        }
-
-        function getChatsStorageKey() {
-            const username = localStorage.getItem('authUsername');
-            return username ? ('chats_' + username) : 'chats_guest';
         }
 
         // ---- Compress an already-sent image down to a tiny thumbnail for long-term history storage ----
@@ -2329,56 +2371,69 @@
             }
         }
 
-        // ---- Quota-safe saveChats() — never lets a full storage blow up the app ----
-        function saveChats() {
+        // ---- Save the current chat to the server. Replaces the old localStorage-based saveChats(). ----
+        async function saveChats() {
+            if (!currentChatId || !chats[currentChatId]) return;
+
+            const chat = chats[currentChatId];
+
+            // Auto-generate a title from the first user message, if not set yet
+            if (!chat.title || chat.title === 'New Chat') {
+                const firstUserMsg = chat.messages.find(function(m) { return m.role === 'user'; });
+                if (firstUserMsg) {
+                    chat.title = firstUserMsg.content.slice(0, 40) || 'New Chat';
+                }
+            }
+
             try {
-                localStorage.setItem(getChatsStorageKey(), JSON.stringify(chats));
-            } catch (err) {
-                if (err.name === 'QuotaExceededError') {
-                    const freed = tryFreeUpStorageSpace();
-                    if (freed) {
-                        try {
-                            localStorage.setItem(getChatsStorageKey(), JSON.stringify(chats));
-                            showToast('Freed up storage space automatically', 'info');
-                            return;
-                        } catch (err2) {
-                            // still failed even after freeing — fall through to user-facing warning
-                        }
-                    }
-                    showToast('Storage is full. Please delete some old chats to continue.', 'error');
-                    console.error('saveChats failed even after cleanup attempt:', err);
+                const response = await fetch(backendUrl + '/api/chats/' + currentChatId, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    },
+                    body: JSON.stringify({ chat: chat })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    showToast('Could not save chat', 'error');
+                    return;
+                }
+                // Update the sidebar summary in-memory without a full re-fetch
+                const existingSummary = chatSummaries.find(function(c) { return c.id === currentChatId; });
+                if (existingSummary) {
+                    existingSummary.title = chat.title;
+                    existingSummary.updatedAt = Date.now();
                 } else {
-                    console.error('saveChats failed:', err);
+                    chatSummaries.unshift({ id: currentChatId, title: chat.title, updatedAt: Date.now() });
                 }
+                chatSummaries.sort(function(a, b) { return b.updatedAt - a.updatedAt; });
+                renderChatList();
+            } catch (err) {
+                console.error('Failed to save chat:', err);
+                showToast('Could not save chat — check your connection', 'error');
             }
         }
 
-        // Attempts to shrink any full-resolution images still sitting in older chats
-        // (in case shrinkImageInHistory() wasn't called for some of them), freeing
-        // space without deleting any conversations.
-        function tryFreeUpStorageSpace() {
-            let freedAny = false;
-            const chatIds = Object.keys(chats);
-
-            for (const chatId of chatIds) {
-                const chat = chats[chatId];
-                if (!chat || !chat.messages) continue;
-                for (const msg of chat.messages) {
-                    if (msg.attachment && msg.attachment.base64 && !msg.attachment.isThumbnailOnly) {
-                        // Drop the large base64 immediately (synchronous fallback,
-                        // since we're in a failure path and can't await here)
-                        msg.attachment.base64 = null;
-                        msg.attachment.isThumbnailOnly = true;
-                        freedAny = true;
-                    }
+        // ---- Load all chats for the logged-in user from the server. ----
+        // Only fetches summaries (id, title, updatedAt) for the sidebar —
+        // full message content loads on-demand when a chat is opened.
+        async function loadChats() {
+            try {
+                const response = await fetch(backendUrl + '/api/chats', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    chatSummaries = data.chats;
+                } else {
+                    chatSummaries = [];
                 }
+            } catch (err) {
+                console.error('Failed to load chat list:', err);
+                chatSummaries = [];
             }
-            return freedAny;
-        }
-
-        function loadChats() {
-            const raw = localStorage.getItem(getChatsStorageKey());
-            chats = raw ? JSON.parse(raw) : {};
+            renderChatList();
         }
 
         function appendMessage(role, content, attachment, animate, msgData) {
@@ -3412,7 +3467,7 @@
                     // Save auth token + username, then hide the auth screen
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('authUsername', data.username);
-                    loadChats();        // load THIS account's chat history from its scoped key
+                    await loadChats();  // load THIS account's chat history from the server
                     renderChatList();   // display it in the sidebar
                     overlay.style.display = 'none';
                     updateLoggedInAs();
@@ -3559,6 +3614,7 @@
                 // Reset in-memory chat state — do NOT call saveChats() here, that would
                 // overwrite this user's real saved history with an empty object
                 chats = {};
+                chatSummaries = [];
                 currentChatId = null;
                 renderChatList();
                 showWelcome();
@@ -3601,19 +3657,20 @@
             const params = new URLSearchParams(window.location.search);
             const chatId = params.get('chat');
             const msgId = params.get('msg');
-            if (chatId && chats[chatId]) {
-                loadChat(chatId);
-                if (msgId) {
-                    // Scroll to and highlight the referenced message
-                    setTimeout(function() {
-                        const el = document.querySelector('[data-msg-id="' + msgId + '"]');
-                        if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            el.classList.add('msg-highlight');
-                            setTimeout(function() { el.classList.remove('msg-highlight'); }, 2500);
-                        }
-                    }, 300);
-                }
+            if (chatId) {
+                loadChat(chatId).then(function() {
+                    if (msgId) {
+                        // Scroll to and highlight the referenced message
+                        setTimeout(function() {
+                            const el = document.querySelector('[data-msg-id="' + msgId + '"]');
+                            if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                el.classList.add('msg-highlight');
+                                setTimeout(function() { el.classList.remove('msg-highlight'); }, 2500);
+                            }
+                        }, 300);
+                    }
+                });
             }
         })();
 
