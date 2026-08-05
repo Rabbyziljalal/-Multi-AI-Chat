@@ -2412,10 +2412,15 @@
             sendMessage();
         }
 
+        // ---- Stable, unique ID generator — call ONCE per message at creation time ----
+        function generateMessageId() {
+            return 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+        }
+
         async function sendMessage(overrideText, overrideAttachment) {
             const input = document.getElementById('userInput');
             const text = (overrideText !== undefined ? overrideText : input.value).trim();
-            const attachment = overrideAttachment || currentAttachment;
+            const attachment = overrideAttachment !== undefined ? overrideAttachment : currentAttachment;
             if ((!text && !attachment) || isGenerating) return;
 
             // Create a new chat if none is active (e.g. after page load with welcome screen)
@@ -2449,18 +2454,27 @@
                 mimeType: attachment.mimeType
             } : null;
 
-            appendMessage('user', displayContent, msgAttachment);
-            chats[currentChatId].messages.push({
+            // Create the user message object with a stable id ONCE, before rendering or pushing.
+            // This ensures the id in the DOM matches the id in chat.messages.
+            const userMsg = {
+                id: generateMessageId(),
                 role: 'user',
                 content: displayContent,
-                attachment: msgAttachment
-            });
+                attachment: msgAttachment,
+                timestamp: Date.now()
+            };
+
+            // Push to chat data FIRST, then render with msgData so appendMessage uses the same id
+            chats[currentChatId].messages.push(userMsg);
 
             if (chats[currentChatId].messages.length === 1) {
                 const titleText = text || (attachment ? attachment.name : 'New Chat');
                 chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
                 renderChatList();
             }
+
+            // Render the user message, passing the message object as msgData so the stable id is used
+            appendMessage('user', displayContent, msgAttachment, true, userMsg);
 
             if (overrideText === undefined) {
                 input.value = '';
@@ -2547,14 +2561,15 @@
                 addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
             }
 
+            // Build the payload using the FULL conversation history from chat.messages.
+            // The last entry is the user message we just added in sendMessage(), so it's
+            // already included. We prepend the system prompt and map to {role, content}.
             const messages = [
                 { role: 'system', content: systemPrompt },
-                ...chats[currentChatId].messages.slice(0, -1).map(function(m) {
+                ...chats[currentChatId].messages.map(function(m) {
                     return { role: m.role, content: m.content };
                 })
             ];
-
-            messages.push({ role: 'user', content: text || '' });
 
             const body = {
                 provider: provider,
@@ -2602,9 +2617,23 @@
                 }
             }
 
+            // Create the assistant message object with a stable id ONCE, before streaming.
+            // Push it to chat.messages immediately so the full conversation history (including
+            // this in-progress response) is always in sync. We update its content as chunks arrive.
+            const assistantMsg = {
+                id: generateMessageId(),
+                role: 'assistant',
+                content: '',
+                msgId: generateMessageId(),
+                provider: provider,
+                model: model,
+                rating: null,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(assistantMsg);
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let fullText = '';
             let buffer = '';
 
             const contentDiv = botMsg.querySelector('.message-content');
@@ -2641,31 +2670,26 @@
                             chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
                         }
                         if (chunk) {
-                            fullText += chunk;
-                            contentDiv.innerHTML = formatContent(fullText);
+                            // Write chunks into the assistant message object in chat.messages,
+                            // not just a disconnected local variable. This keeps the stored
+                            // conversation history in sync with what's being streamed.
+                            assistantMsg.content += chunk;
+                            contentDiv.innerHTML = formatContent(assistantMsg.content);
                             scrollToBottom();
                         }
                     } catch {}
                 }
             }
 
-            // Generate a stable msgId ONCE and persist it in the chat data so it survives reloads
-            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-            const savedRating = localStorage.getItem('rating_' + msgId);
-            chats[currentChatId].messages.push({ role: 'assistant', content: fullText, msgId: msgId, provider: provider, model: model, rating: savedRating || null, timestamp: Date.now() });
+            // Persist the completed response so it survives reloads
             saveChats();
 
             const meta = document.createElement('div');
             meta.className = 'message-meta';
-            meta.innerHTML = createMessageActions(provider, model, fullText, msgId, chats[currentChatId].messages[chats[currentChatId].messages.length - 1].timestamp);
+            meta.innerHTML = createMessageActions(provider, model, assistantMsg.content, assistantMsg.msgId, assistantMsg.timestamp);
             botMsg.querySelector('.message-content-wrapper').appendChild(meta);
-            botMsg.dataset.msgId = msgId;
-            botMsg.dataset.fullText = fullText; // stored for Read Aloud without re-parsing HTML
-
-            // Restore saved like/dislike state if this message was rated before (e.g. after reload)
-            if (savedRating) {
-                document.getElementById(savedRating + '_' + msgId).classList.add('active-' + savedRating);
-            }
+            botMsg.dataset.msgId = assistantMsg.msgId;
+            botMsg.dataset.fullText = assistantMsg.content; // stored for Read Aloud without re-parsing HTML
         }
 
         // ---- SVG icons (Lucide/feather style) for message action buttons ----
