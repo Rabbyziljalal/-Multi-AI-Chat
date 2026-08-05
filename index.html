@@ -933,119 +933,6 @@
         }
         .send-btn:active { transform: scale(0.95); }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-
-        /* Voice Language Bar */
-        .voice-lang-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            max-width: 850px;
-            margin: 0 auto 8px;
-            padding: 0 4px;
-        }
-
-        .voice-lang-bar select {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            color: var(--text-secondary);
-            padding: 6px 14px;
-            font-size: 0.82rem;
-            font-family: inherit;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.2s;
-        }
-
-        .voice-lang-bar select:hover,
-        .voice-lang-bar select:focus {
-            border-color: var(--cyan);
-            color: var(--text-primary);
-        }
-
-        /* Voice Button */
-        .voice-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .voice-btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: var(--cyan);
-        }
-
-        /* Recording State */
-        .voice-btn.recording {
-            background: linear-gradient(135deg, #ef4444, #f97316);
-            border-color: #ef4444;
-            color: white;
-            animation: pulse-record 1.5s infinite;
-        }
-
-        @keyframes pulse-record {
-            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
-            50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(239,68,68,0.6); }
-        }
-
-        /* Voice Status Overlay */
-        .voice-overlay {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 12px 24px;
-            display: none;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            z-index: 1000;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .voice-overlay.active {
-            display: flex;
-        }
-
-        .voice-overlay .voice-wave {
-            display: flex;
-            gap: 3px;
-            align-items: center;
-            height: 20px;
-        }
-
-        .voice-overlay .voice-wave span {
-            width: 3px;
-            background: #ef4444;
-            border-radius: 2px;
-            animation: voice-wave 0.5s infinite ease-in-out;
-        }
-
-        .voice-overlay .voice-wave span:nth-child(1) { height: 8px; animation-delay: 0s; }
-        .voice-overlay .voice-wave span:nth-child(2) { height: 14px; animation-delay: 0.1s; }
-        .voice-overlay .voice-wave span:nth-child(3) { height: 10px; animation-delay: 0.2s; }
-        .voice-overlay .voice-wave span:nth-child(4) { height: 16px; animation-delay: 0.15s; }
-        .voice-overlay .voice-wave span:nth-child(5) { height: 6px; animation-delay: 0.05s; }
-
-        @keyframes voice-wave {
-            0%, 100% { transform: scaleY(1); }
-            50% { transform: scaleY(0.4); }
-        }
-
         .input-hint {
             text-align: center;
             margin-top: 10px;
@@ -1905,76 +1792,12 @@
                     🌐 Web Search ON
                 </span>
             </div>
-            <div class="voice-lang-bar">
-                <span>🎙️</span>
-                <select id="voiceLang" onchange="saveVoiceLang()">
-                    <option value="bn-BD">🇧🇩 Bangla</option>
-                    <option value="en-US" selected>🇺🇸 English</option>
-                    <option value="hi-IN">🇮🇳 Hindi</option>
-                    <option value="ur-PK">🇵🇰 Urdu</option>
-                    <option value="ar-SA">🇸🇦 Arabic</option>
-                    <option value="es-ES">🇪🇸 Spanish</option>
-                    <option value="fr-FR">🇫🇷 French</option>
-                    <option value="de-DE">🇩🇪 German</option>
-                    <option value="zh-CN">🇨🇳 Chinese</option>
-                    <option value="ja-JP">🇯🇵 Japanese</option>
-                    <option value="ko-KR">🇰🇷 Korean</option>
-                    <option value="ru-RU">🇷🇺 Russian</option>
-                    <option value="pt-BR">🇧🇷 Portuguese</option>
-                    <option value="it-IT">🇮🇹 Italian</option>
-                    <option value="tr-TR">🇹🇷 Turkish</option>
-                    <option value="id-ID">🇮🇩 Indonesian</option>
-                    <option value="th-TH">🇹🇭 Thai</option>
-                    <option value="vi-VN">🇻🇳 Vietnamese</option>
-                    <option value="ta-IN">🇮🇳 Tamil</option>
-                    <option value="te-IN">🇮🇳 Telugu</option>
-                    <option value="mr-IN">🇮🇳 Marathi</option>
-                    <option value="gu-IN">🇮🇳 Gujarati</option>
-                    <option value="kn-IN">🇮🇳 Kannada</option>
-                    <option value="ml-IN">🇮🇳 Malayalam</option>
-                    <option value="pa-IN">🇮🇳 Punjabi</option>
-                    <option value="ne-NP">🇳🇵 Nepali</option>
-                    <option value="si-LK">🇱🇰 Sinhala</option>
-                    <option value="my-MM">🇲🇲 Burmese</option>
-                    <option value="km-KH">🇰🇭 Khmer</option>
-                    <option value="lo-LA">🇱🇦 Lao</option>
-                    <option value="fil-PH">🇵🇭 Filipino</option>
-                    <option value="ms-MY">🇲🇾 Malay</option>
-                    <option value="sw-KE">🇰🇪 Swahili</option>
-                    <option value="af-ZA">🇿🇦 Afrikaans</option>
-                    <option value="fa-IR">🇮🇷 Persian</option>
-                    <option value="he-IL">🇮🇱 Hebrew</option>
-                    <option value="pl-PL">🇵🇱 Polish</option>
-                    <option value="nl-NL">🇳🇱 Dutch</option>
-                    <option value="sv-SE">🇸🇪 Swedish</option>
-                    <option value="da-DK">🇩🇰 Danish</option>
-                    <option value="fi-FI">🇫🇮 Finnish</option>
-                    <option value="no-NO">🇳🇴 Norwegian</option>
-                    <option value="cs-CZ">🇨🇿 Czech</option>
-                    <option value="el-GR">🇬🇷 Greek</option>
-                    <option value="hu-HU">🇭🇺 Hungarian</option>
-                    <option value="ro-RO">🇷🇴 Romanian</option>
-                    <option value="uk-UA">🇺🇦 Ukrainian</option>
-                    <option value="bg-BG">🇧🇬 Bulgarian</option>
-                    <option value="hr-HR">🇭🇷 Croatian</option>
-                    <option value="sk-SK">🇸🇰 Slovak</option>
-                    <option value="sl-SI">🇸🇮 Slovenian</option>
-                    <option value="lt-LT">🇱🇹 Lithuanian</option>
-                    <option value="lv-LV">🇱🇻 Latvian</option>
-                    <option value="et-EE">🇪🇪 Estonian</option>
-                    <option value="sq-AL">🇦🇱 Albanian</option>
-                    <option value="mk-MK">🇲🇰 Macedonian</option>
-                    <option value="sr-RS">🇷🇸 Serbian</option>
-                    <option value="bs-BA">🇧🇦 Bosnian</option>
-                </select>
-            </div>
             <div class="input-wrapper">
                 <div class="attachment-preview" id="attachmentPreview"></div>
                 <div class="input-row">
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI..." rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
-                        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Voice input">🎙️</button>
                         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -2152,14 +1975,6 @@
         </div>
     </div>
 
-    <!-- Voice Recording Overlay -->
-    <div class="voice-overlay" id="voiceOverlay">
-        <div class="voice-wave">
-            <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <span id="voiceText">Listening...</span>
-    </div>
-
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
@@ -2194,7 +2009,6 @@
             // Always start fresh — don't auto-resume the last active chat
             currentChatId = null;
             showWelcome();
-            initVoice();
         }
 
         async function checkConnection() {
@@ -3859,116 +3673,6 @@
                 });
             }
         })();
-
-        // ============================================
-        // VOICE INPUT
-        // ============================================
-
-        let recognition = null;
-        let isRecording = false;
-
-        function initVoice() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-            if (!SpeechRecognition) {
-                document.getElementById('voiceBtn').style.display = 'none';
-                document.querySelector('.voice-lang-bar').style.display = 'none';
-                return;
-            }
-
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = true;
-
-            // Load saved language
-            const savedLang = localStorage.getItem('voiceLang') || 'en-US';
-            document.getElementById('voiceLang').value = savedLang;
-            recognition.lang = savedLang;
-
-            recognition.onstart = function() {
-                isRecording = true;
-                document.getElementById('voiceBtn').classList.add('recording');
-                document.getElementById('voiceOverlay').classList.add('active');
-                document.getElementById('voiceText').textContent = 'Listening...';
-            };
-
-            recognition.onresult = function(event) {
-                let finalText = '';
-                let interimText = '';
-
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalText += transcript;
-                    } else {
-                        interimText += transcript;
-                    }
-                }
-
-                const input = document.getElementById('userInput');
-                if (interimText) {
-                    input.value = interimText;
-                    autoResize(input);
-                }
-                if (finalText) {
-                    input.value = finalText;
-                    autoResize(input);
-                    document.getElementById('voiceText').textContent = 'Processing...';
-                }
-            };
-
-            recognition.onerror = function(event) {
-                let msg = 'Voice error';
-                if (event.error === 'no-speech') msg = 'No speech detected';
-                else if (event.error === 'audio-capture') msg = 'Microphone not found';
-                else if (event.error === 'not-allowed') msg = 'Microphone blocked';
-                else if (event.error === 'network') msg = 'Network error';
-
-                showToast('❌ ' + msg, 'error');
-                stopVoice();
-            };
-
-            recognition.onend = function() {
-                stopVoice();
-                const input = document.getElementById('userInput');
-                if (input.value.trim() && !isGenerating) {
-                    setTimeout(function() { sendMessage(); }, 400);
-                }
-            };
-        }
-
-        function toggleVoice() {
-            if (!recognition) {
-                initVoice();
-                if (!recognition) return;
-            }
-
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(function() {
-                        recognition.lang = document.getElementById('voiceLang').value;
-                        recognition.start();
-                    })
-                    .catch(function() {
-                        showToast('❌ Allow microphone permission', 'error');
-                    });
-            }
-        }
-
-        function stopVoice() {
-            isRecording = false;
-            document.getElementById('voiceBtn').classList.remove('recording');
-            document.getElementById('voiceOverlay').classList.remove('active');
-        }
-
-        function saveVoiceLang() {
-            const lang = document.getElementById('voiceLang').value;
-            localStorage.setItem('voiceLang', lang);
-            if (recognition) recognition.lang = lang;
-            showToast('🌐 Voice: ' + lang, 'info');
-        }
 
         // ============================================
         // PWA: SERVICE WORKER REGISTRATION
