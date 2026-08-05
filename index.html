@@ -575,6 +575,48 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        /* -------- User message actions (Retry / Edit / Copy) -------- */
+        .user-message-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 6px;
+            justify-content: flex-end; /* aligns under the right-aligned user bubble */
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .message.user:hover .user-message-actions {
+            opacity: 1; /* show on hover, like Claude/ChatGPT */
+        }
+        .user-message-actions .message-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .user-message-actions .message-action-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .user-message-actions .message-action-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+        @media (max-width: 768px) {
+            .user-message-actions {
+                opacity: 1; /* always visible on touch devices */
+            }
+            .user-message-actions .message-action-btn {
+                width: 36px;
+                height: 36px;
+            }
+        }
         /* -------- Message Actions v2: more menu, edit mode, bookmark, share highlight -------- */
         .msg-more-wrap {
             position: relative;
@@ -2219,7 +2261,43 @@
                 }
             }
 
-            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div></div>';
+            // For user messages, ensure a stable id exists (generate + persist once) so
+            // the Retry/Edit/Copy buttons can reference this message across reloads.
+            let userMsgId = null;
+            if (role === 'user') {
+                if (msgData && msgData.id) {
+                    userMsgId = msgData.id;
+                } else {
+                    userMsgId = 'umsg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                    if (msgData) {
+                        msgData.id = userMsgId;
+                        if (currentChatId && chats[currentChatId]) {
+                            const idx = chats[currentChatId].messages.indexOf(msgData);
+                            if (idx !== -1) {
+                                chats[currentChatId].messages[idx].id = userMsgId;
+                                saveChats();
+                            }
+                        }
+                    }
+                }
+            }
+
+            let userActionsHtml = '';
+            if (role === 'user') {
+                userActionsHtml = '<div class="user-message-actions" data-message-id="' + userMsgId + '">' +
+                    '<button class="message-action-btn" data-action="copy" title="Copy">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+                    '</button>' +
+                    '<button class="message-action-btn" data-action="edit" title="Edit">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+                    '</button>' +
+                    '<button class="message-action-btn" data-action="retry" title="Retry">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+                    '</button>' +
+                    '</div>';
+            }
+
+            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div>' + userActionsHtml + '</div>';
 
             // For assistant messages restored from saved chats, recreate the full action row
             if (role === 'bot' && msgData) {
@@ -2334,10 +2412,11 @@
             sendMessage();
         }
 
-        async function sendMessage() {
+        async function sendMessage(overrideText, overrideAttachment) {
             const input = document.getElementById('userInput');
-            const text = input.value.trim();
-            if ((!text && !currentAttachment) || isGenerating) return;
+            const text = (overrideText !== undefined ? overrideText : input.value).trim();
+            const attachment = overrideAttachment || currentAttachment;
+            if ((!text && !attachment) || isGenerating) return;
 
             // Create a new chat if none is active (e.g. after page load with welcome screen)
             if (!currentChatId || !chats[currentChatId]) {
@@ -2354,18 +2433,20 @@
             const model = parts[1];
 
             let displayContent = text || '';
-            if (currentAttachment) {
-                if (currentAttachment.type === 'image') {
+            if (attachment) {
+                if (attachment.type === 'image') {
                     displayContent = text || 'What do you see in this image?';
-                } else if (currentAttachment.type === 'pdf') {
+                } else if (attachment.type === 'pdf') {
                     displayContent = text || 'Summarize this PDF';
                 }
             }
 
-            const msgAttachment = currentAttachment ? {
-                type: currentAttachment.type,
-                preview: currentAttachment.preview,
-                name: currentAttachment.name
+            const msgAttachment = attachment ? {
+                type: attachment.type,
+                preview: attachment.preview,
+                name: attachment.name,
+                data: attachment.data,
+                mimeType: attachment.mimeType
             } : null;
 
             appendMessage('user', displayContent, msgAttachment);
@@ -2376,13 +2457,15 @@
             });
 
             if (chats[currentChatId].messages.length === 1) {
-                const titleText = text || (currentAttachment ? currentAttachment.name : 'New Chat');
+                const titleText = text || (attachment ? attachment.name : 'New Chat');
                 chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
                 renderChatList();
             }
 
-            input.value = '';
-            input.style.height = 'auto';
+            if (overrideText === undefined) {
+                input.value = '';
+                input.style.height = 'auto';
+            }
             saveChats();
 
             const botMsg = appendMessage('bot', '', null);
@@ -2396,7 +2479,7 @@
             botMsg.querySelector('.message-content').appendChild(typing);
 
             try {
-                await streamFromBackend(provider, model, text, botMsg);
+                await streamFromBackend(provider, model, text, botMsg, attachment);
             } catch (err) {
                 botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
                 showToast('Error: ' + err.message, 'error');
@@ -2408,7 +2491,57 @@
             }
         }
 
-        async function streamFromBackend(provider, model, text, botMsg) {
+        // ---- Event delegation: Retry / Edit / Copy buttons under user messages ----
+        document.getElementById('chatContainer').addEventListener('click', function(e) {
+            const btn = e.target.closest('.user-message-actions .message-action-btn');
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+            const actionsRow = btn.closest('.user-message-actions');
+            const messageId = actionsRow.dataset.messageId;
+            const chat = chats[currentChatId];
+            if (!chat) return;
+            const msgIndex = chat.messages.findIndex(function(m) { return m.id === messageId; });
+            if (msgIndex === -1) return;
+            const userMessage = chat.messages[msgIndex];
+
+            if (action === 'copy') {
+                navigator.clipboard.writeText(userMessage.content);
+                showToast('Copied to clipboard', 'success');
+            }
+
+            if (action === 'edit') {
+                // Put the message text back into the input box for editing,
+                // and remove this message + everything after it (since editing
+                // means replacing this turn and getting a fresh AI response).
+                const input = document.getElementById('userInput');
+                input.value = userMessage.content;
+                input.focus();
+                autoResize(input);
+                chat.messages = chat.messages.slice(0, msgIndex); // drop this msg + AI reply after it
+                saveChats();
+                // Re-render the chat up to this point
+                const msgs = document.getElementById('messages');
+                msgs.innerHTML = '';
+                chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
+            }
+
+            if (action === 'retry') {
+                // Re-send this exact same user message: drop it + everything after,
+                // then resend it as a fresh message to get a new AI response.
+                const textToRetry = userMessage.content;
+                const attachmentToRetry = userMessage.attachment || null;
+                chat.messages = chat.messages.slice(0, msgIndex); // drop this msg + AI reply after it
+                saveChats();
+                // Re-render the chat up to this point
+                const msgs = document.getElementById('messages');
+                msgs.innerHTML = '';
+                chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
+                sendMessage(textToRetry, attachmentToRetry);
+            }
+        });
+
+        async function streamFromBackend(provider, model, text, botMsg, attachmentOverride) {
             // Web search is handled server-side via webSearch flag
             if (isSearchEnabled) {
                 addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
@@ -2430,12 +2563,13 @@
                 webSearch: isSearchEnabled
             };
 
-            if (currentAttachment) {
-                if (currentAttachment.type === 'image') {
-                    body.imageBase64 = currentAttachment.data;
-                    body.imageMimeType = currentAttachment.mimeType;
-                } else if (currentAttachment.type === 'pdf') {
-                    body.pdfText = currentAttachment.data;
+            const activeAttachment = attachmentOverride || currentAttachment;
+            if (activeAttachment) {
+                if (activeAttachment.type === 'image') {
+                    body.imageBase64 = activeAttachment.data;
+                    body.imageMimeType = activeAttachment.mimeType;
+                } else if (activeAttachment.type === 'pdf') {
+                    body.pdfText = activeAttachment.data;
                 }
             }
 
@@ -2566,8 +2700,6 @@
                 '<span class="msg-more-wrap">' +
                 '<button class="msg-action-btn msg-more-btn" onclick="toggleMoreMenu(this)" title="More actions" aria-label="More actions" aria-haspopup="true" aria-expanded="false">' + SVG_MORE + '</button>' +
                 '<div class="msg-more-menu">' +
-                '<button class="msg-more-menu-item" onclick="editMessage(\'' + msgId + '\')">' + SVG_EDIT + 'Edit message</button>' +
-                '<button class="msg-more-menu-item" onclick="retryFromMessage(\'' + msgId + '\')">' + SVG_RETRY + 'Retry from here</button>' +
                 '<button class="msg-more-menu-item" onclick="copyAsMarkdown(\'' + msgId + '\')">' + SVG_MARKDOWN + 'Copy as Markdown</button>' +
                 '<button class="msg-more-menu-item" onclick="copyAsPlainText(\'' + msgId + '\')">' + SVG_TEXT + 'Copy as Plain Text</button>' +
                 '<button class="msg-more-menu-item" onclick="shareMessage(\'' + msgId + '\')">' + SVG_SHARE + 'Share message link</button>' +
