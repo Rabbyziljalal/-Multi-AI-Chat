@@ -43,10 +43,9 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             height: 100vh;
-            height: 100dvh; /* dynamic viewport height — accounts for mobile browser UI */
+            height: 100dvh;
             overflow: hidden;
             display: flex;
-            /* Safe-area padding for notches / home indicator (installed PWA has no browser chrome) */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             padding-left: env(safe-area-inset-left);
@@ -58,9 +57,6 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        /* ============================================ */
-        /* CLAUDE-STYLE SIDEBAR + SETTINGS - CSS        */
-        /* ============================================ */
         .sidebar,
         .settings-modal-overlay {
             --bg-main: #1a1a1a;
@@ -72,8 +68,6 @@
             --border-subtle: rgba(255,255,255,0.08);
             --accent: #cc785c;
         }
-
-        /* -------- Sidebar -------- */
         .sidebar {
             width: 260px;
             background: var(--bg-sidebar);
@@ -83,18 +77,13 @@
             border-right: 1px solid var(--border-subtle);
             flex-shrink: 0;
         }
-
-        .sidebar.collapsed {
-            width: 68px;
-        }
-
+        .sidebar.collapsed { width: 68px; }
         .sidebar-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 14px 12px;
         }
-
         .sidebar-toggle-btn {
             background: none;
             border: none;
@@ -108,7 +97,6 @@
             border-radius: 6px;
         }
         .sidebar-toggle-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-
         .sidebar-brand {
             display: flex;
             align-items: center;
@@ -116,7 +104,6 @@
             padding: 4px 16px 16px;
         }
         .sidebar.collapsed .sidebar-brand-text { display: none; }
-
         .new-chat-btn {
             margin: 0 12px 12px;
             display: flex;
@@ -141,7 +128,6 @@
             justify-content: center; border-radius: 50%; margin: 0 auto 12px;
         }
         .sidebar.collapsed .new-chat-btn .btn-label { display: none; }
-
         .chat-history-heading {
             padding: 8px 16px 4px;
             font-size: 11px;
@@ -151,16 +137,12 @@
             text-transform: uppercase;
         }
         .sidebar.collapsed .chat-history-heading,
-        .sidebar.collapsed .chat-history-list {
-            display: none;
-        }
-
+        .sidebar.collapsed .chat-history-list { display: none; }
         .chat-history-list {
             flex: 1;
             overflow-y: auto;
             padding: 0 8px;
         }
-
         .chat-history-item {
             display: flex;
             align-items: center;
@@ -197,13 +179,10 @@
         }
         .chat-history-item:hover .delete-btn { opacity: 1; }
         .chat-history-item .delete-btn:hover { color: #e08a7d; }
-
-        /* -------- Sidebar bottom: only Settings -------- */
         .sidebar-bottom {
             padding: 8px;
             border-top: 1px solid var(--border-subtle);
         }
-
         .sidebar-settings-btn {
             display: flex;
             align-items: center;
@@ -231,9 +210,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .sidebar.collapsed .sidebar-logged-in-as {
-            display: none; /* hide when sidebar is collapsed, same as other labels */
-        }
+        .sidebar.collapsed .sidebar-logged-in-as { display: none; }
         .sidebar-install-btn {
             display: none;
             align-items: center;
@@ -575,18 +552,17 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        /* -------- User message actions (Retry / Edit / Copy) -------- */
         .user-message-actions {
             display: flex;
             align-items: center;
             gap: 4px;
             margin-top: 6px;
-            justify-content: flex-end; /* aligns under the right-aligned user bubble */
+            justify-content: flex-end;
             opacity: 0;
             transition: opacity 0.15s;
         }
         .message.user:hover .user-message-actions {
-            opacity: 1; /* show on hover, like Claude/ChatGPT */
+            opacity: 1;
         }
         .user-message-actions .message-action-btn {
             background: none;
@@ -610,14 +586,13 @@
         }
         @media (max-width: 768px) {
             .user-message-actions {
-                opacity: 1; /* always visible on touch devices */
+                opacity: 1;
             }
             .user-message-actions .message-action-btn {
                 width: 36px;
                 height: 36px;
             }
         }
-        /* -------- Message Actions v2: more menu, edit mode, bookmark, share highlight -------- */
         .msg-more-wrap {
             position: relative;
             display: inline-flex;
@@ -1041,14 +1016,12 @@
         .message.search .message-avatar {
             display: none;
         }
-        /* -------- Settings modal (Claude-style) -------- */
         .settings-modal-overlay {
             position: fixed; inset: 0;
             background: rgba(0,0,0,0.5);
             display: flex; align-items: center; justify-content: center;
             z-index: 1000;
         }
-
         .settings-modal {
             position: relative;
             background: var(--bg-main, #1a1a1a);
@@ -1064,7 +1037,6 @@
             font-family: 'Inter', system-ui, sans-serif;
             color: var(--text-primary, #e8e8e6);
         }
-
         .settings-modal-header {
             position: absolute;
             top: 0; left: 0; right: 0;
@@ -1085,14 +1057,11 @@
             display: flex; align-items: center; justify-content: center; border-radius: 6px;
         }
         .settings-modal-close:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text-primary, #e8e8e6); }
-
         .settings-modal-body {
             flex: 1;
             padding: 20px 22px;
             overflow-y: auto;
         }
-
-        /* -------- Settings tab navigation -------- */
         .settings-nav {
             width: 200px;
             flex-shrink: 0;
@@ -1101,7 +1070,6 @@
             padding: 16px 8px;
             overflow-y: auto;
         }
-
         .settings-nav-item {
             display: flex;
             align-items: center;
@@ -1114,17 +1082,14 @@
         }
         .settings-nav-item:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text-primary, #e8e8e6); }
         .settings-nav-item.active { background: var(--bg-active, rgba(255,255,255,0.09)); color: var(--text-primary, #e8e8e6); font-weight: 500; }
-
         .settings-main {
             flex: 1;
             display: flex;
             flex-direction: column;
             min-width: 0;
         }
-
         .settings-pane { display: none; }
         .settings-pane.active { display: block; }
-
         .settings-avatar {
             width: 56px; height: 56px; border-radius: 50%;
             background: linear-gradient(135deg, #0066ff, #4d3dff);
@@ -1132,12 +1097,10 @@
             color: #fff; font-size: 22px; font-weight: 600;
             margin-bottom: 12px;
         }
-
         .settings-section {
             margin-bottom: 24px;
         }
         .settings-section:last-child { margin-bottom: 0; }
-
         .settings-section-title {
             font-size: 13px;
             font-weight: 600;
@@ -1150,7 +1113,6 @@
             margin-bottom: 10px;
             line-height: 1.4;
         }
-
         .settings-input,
         .settings-textarea {
             width: 100%;
@@ -1163,7 +1125,6 @@
             box-sizing: border-box;
         }
         .settings-textarea { min-height: 90px; resize: vertical; font-family: inherit; }
-
         .settings-row {
             display: flex;
             align-items: center;
@@ -1174,8 +1135,6 @@
         .settings-row:last-child { border-bottom: none; }
         .settings-row-label { font-size: 13.5px; color: var(--text-primary, #e8e8e6); }
         .settings-row-desc { font-size: 12px; color: var(--text-secondary, #9b9b96); margin-top: 2px; }
-
-        /* Toggle switch */
         .settings-toggle {
             width: 38px; height: 22px;
             background: #444;
@@ -1197,7 +1156,6 @@
             transition: left 0.2s;
         }
         .settings-toggle.on::after { left: 18px; }
-
         .settings-provider-list {
             display: flex; flex-wrap: wrap; gap: 6px;
         }
@@ -1209,7 +1167,6 @@
             font-size: 12px;
             color: var(--text-secondary, #9b9b96);
         }
-
         .settings-danger-btn {
             background: none;
             border: 1px solid #7a3b34;
@@ -1220,7 +1177,6 @@
             cursor: pointer;
         }
         .settings-danger-btn:hover { background: rgba(224,138,125,0.1); }
-
         .settings-modal-footer {
             display: flex;
             justify-content: flex-end;
@@ -1242,8 +1198,6 @@
             animation-duration: 0.01ms !important;
             transition-duration: 0.01ms !important;
         }
-
-        /* -------- Auth overlay (login / signup) - v3 premium -------- */
         .auth-overlay {
             position: fixed; inset: 0;
             background:
@@ -1254,7 +1208,6 @@
             display: flex; align-items: center; justify-content: center;
             z-index: 2000;
         }
-
         .auth-box {
             position: relative;
             background: linear-gradient(180deg, rgba(26,26,28,0.9), rgba(18,18,20,0.95));
@@ -1269,8 +1222,6 @@
                 0 0 0 1px rgba(255,255,255,0.03) inset,
                 0 1px 0 rgba(255,255,255,0.06) inset;
         }
-
-        /* subtle top border glow accent */
         .auth-box::before {
             content: '';
             position: absolute;
@@ -1279,14 +1230,11 @@
             background: linear-gradient(90deg, transparent, rgba(168,85,247,0.6), rgba(236,72,153,0.6), transparent);
             border-radius: 24px 24px 0 0;
         }
-
         .auth-logo-wrap {
             display: flex;
             justify-content: center;
             margin-bottom: 20px;
         }
-
-        /* Wrapper that hosts the app logo (reused, larger + glow) */
         .auth-logo-frame {
             width: 72px;
             height: 72px;
@@ -1298,13 +1246,11 @@
             border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 0 40px rgba(168,85,247,0.25);
         }
-
         .auth-logo-frame img,
         .auth-logo-frame svg {
             width: 42px;
             height: 42px;
         }
-
         .auth-brand {
             text-align: center;
             font-size: 24px;
@@ -1316,7 +1262,6 @@
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
         .auth-box h2 {
             color: #f5f5f3;
             font-size: 18px;
@@ -1324,16 +1269,13 @@
             margin: 0 0 4px;
             text-align: center;
         }
-
         .auth-box p.auth-sub {
             color: #8b8b87;
             font-size: 13.5px;
             text-align: center;
             margin: 0 0 28px;
         }
-
         .auth-input-group { margin-bottom: 14px; }
-
         .auth-input {
             width: 100%; box-sizing: border-box;
             background: rgba(255,255,255,0.04);
@@ -1344,16 +1286,13 @@
             font-size: 14.5px;
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
         }
-
         .auth-input:focus {
             outline: none;
             background: rgba(255,255,255,0.06);
             border-color: #a855f7;
             box-shadow: 0 0 0 4px rgba(168,85,247,0.12);
         }
-
         .auth-input::placeholder { color: #6b6b68; }
-
         .auth-submit-btn {
             width: 100%;
             background: linear-gradient(120deg, #22d3ee, #a855f7 55%, #ec4899);
@@ -1369,31 +1308,25 @@
             transition: transform 0.15s ease, box-shadow 0.25s ease, filter 0.2s;
             box-shadow: 0 8px 24px rgba(168,85,247,0.35);
         }
-
         .auth-submit-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             filter: brightness(1.08);
             box-shadow: 0 12px 32px rgba(168,85,247,0.5);
         }
-
         .auth-submit-btn:active:not(:disabled) { transform: translateY(0); }
-
         .auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
         .auth-switch {
             text-align: center;
             margin-top: 22px;
             font-size: 13.5px;
             color: #8b8b87;
         }
-
         .auth-switch span.auth-link {
             color: #d896ff;
             cursor: pointer;
             font-weight: 600;
         }
         .auth-switch span.auth-link:hover { color: #e8b4ff; text-decoration: underline; }
-
         .auth-error {
             background: rgba(224,110,110,0.08);
             border: 1px solid rgba(224,110,110,0.25);
@@ -1404,7 +1337,6 @@
             margin-bottom: 18px;
             text-align: center;
         }
-
         .auth-tagline {
             text-align: center;
             color: #55554f;
@@ -1444,11 +1376,7 @@
         .toast.error { border-left: 3px solid var(--error); }
         .toast.info { border-left: 3px solid var(--accent); }
         .toast.warning { border-left: 3px solid var(--warning); }
-        /* ============================================ */
-        /* MOBILE RESPONSIVE (off-canvas sidebar drawer) */
-        /* ============================================ */
         @media (max-width: 768px) {
-            /* Sidebar becomes an off-canvas drawer, not squeezed beside chat */
             .sidebar {
                 position: fixed;
                 left: -100%;
@@ -1461,10 +1389,7 @@
                 z-index: 1000;
                 box-shadow: 4px 0 24px rgba(0,0,0,0.5);
             }
-            .sidebar.open {
-                left: 0;
-            }
-            /* When drawer is open, add a dimmed overlay behind it */
+            .sidebar.open { left: 0; }
             .sidebar-backdrop {
                 position: fixed;
                 inset: 0;
@@ -1472,11 +1397,7 @@
                 z-index: 999;
                 display: none;
             }
-            .sidebar-backdrop.show {
-                display: block;
-            }
-
-            /* Top bar: hamburger + model selector fit on one row */
+            .sidebar-backdrop.show { display: block; }
             .top-bar { padding: 0 12px; }
             .top-bar-left { gap: 8px; }
             .mobile-menu-btn {
@@ -1502,8 +1423,6 @@
                 padding: 10px 10px;
             }
             .connection-status { display: none; }
-
-            /* Chat messages use nearly full width */
             .chat-container {
                 padding: 12px;
                 max-width: 100%;
@@ -1513,7 +1432,7 @@
                 padding-bottom: 20px;
             }
             .message-content {
-                font-size: 16px; /* not smaller — prevents iOS auto-zoom on inputs */
+                font-size: 16px;
             }
             .message-content-wrapper {
                 max-width: calc(100% - 50px);
@@ -1523,8 +1442,6 @@
                 height: 32px;
                 font-size: 0.9rem;
             }
-
-            /* Input bar fixed at bottom, full width, above home indicator */
             .input-area {
                 position: fixed;
                 left: 0;
@@ -1537,11 +1454,9 @@
             .input-wrapper {
                 max-width: 100%;
             }
-            /* Ensure the message list isn't hidden behind the fixed input bar */
             .chat-container {
                 padding-bottom: 120px;
             }
-            /* Inputs must be 16px+ to prevent iOS auto-zoom */
             .input-row textarea {
                 font-size: 16px;
             }
@@ -1550,8 +1465,6 @@
             .auth-input {
                 font-size: 16px;
             }
-
-            /* 44px tap targets for icon buttons */
             .attach-btn,
             .send-btn {
                 width: 44px;
@@ -1561,18 +1474,14 @@
                 width: 44px;
                 height: 44px;
             }
-            /* Message action buttons: at least 36x36px touch targets */
             .copy-btn,
             .msg-action-btn {
                 min-width: 36px;
                 min-height: 36px;
             }
-
             .quick-actions { grid-template-columns: 1fr; }
             .welcome-screen h1 { font-size: 1.8rem; }
             .welcome-screen .subtitle { font-size: 0.95rem; padding: 0 16px; }
-
-            /* Settings modal fits on phone */
             .settings-modal {
                 width: 100%;
                 max-width: 100%;
@@ -1593,7 +1502,6 @@
             .settings-modal-header { padding: 14px 16px; }
             .settings-modal-body { padding: 16px; }
         }
-        /* Desktop: hide the mobile hamburger button */
         .mobile-menu-btn { display: none; }
         .sidebar-backdrop { display: none; }
         @media (min-width: 769px) {
@@ -1604,6 +1512,102 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+        /* ============================================ */
+        /* VOICE INPUT - UI STYLES                      */
+        /* ============================================ */
+        .voice-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .voice-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .voice-btn.recording {
+            background: var(--error);
+            color: white;
+            animation: voicePulse 1.2s infinite;
+        }
+        @keyframes voicePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        }
+        .voice-lang-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .voice-lang-bar select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            outline: none;
+            font-family: inherit;
+        }
+        .voice-lang-bar select:focus {
+            border-color: var(--cyan);
+        }
+        .voice-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1500;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .voice-overlay.active {
+            display: flex;
+        }
+        .voice-overlay .voice-overlay-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--error);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            animation: voicePulse 1.2s infinite;
+        }
+        .voice-overlay .voice-overlay-text {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .voice-overlay .voice-overlay-hint {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            .voice-btn {
+                width: 44px;
+                height: 44px;
+            }
+        }
     </style>
 <base target="_blank">
 </head>
@@ -1730,25 +1734,19 @@
                                 <stop offset="100%" style="stop-color:#7b2ff7;stop-opacity:0.9"/>
                             </linearGradient>
                         </defs>
-                        <!-- Outer ring -->
                         <circle cx="90" cy="90" r="82" stroke="url(#wGrad1)" stroke-width="2" opacity="0.6" fill="none"/>
                         <circle cx="90" cy="90" r="74" stroke="url(#wGrad1)" stroke-width="1" opacity="0.35" fill="none" stroke-dasharray="5 5"/>
-                        <!-- Main bubble fill -->
                         <path d="M90 32 C58 32, 36 54, 36 82 C36 98, 46 112, 62 120 L62 142 L86 124 C87 124, 89 124, 90 124 C122 124, 144 102, 144 82 C144 54, 122 32, 90 32Z" 
                               fill="url(#wGrad1)" opacity="0.2"/>
-                        <!-- Main bubble stroke -->
                         <path d="M90 38 C63 38, 44 57, 44 82 C44 96, 52 108, 66 115 L66 132 L82 119 C84 119, 87 119, 90 119 C117 119, 136 100, 136 82 C136 57, 117 38, 90 38Z" 
                               fill="none" stroke="url(#wGrad1)" stroke-width="3"/>
-                        <!-- Brain lines -->
                         <path d="M62 70 Q78 60, 94 70 T118 70" fill="none" stroke="url(#wGrad2)" stroke-width="2.5" stroke-linecap="round"/>
                         <path d="M68 82 Q82 73, 98 82 T122 82" fill="none" stroke="url(#wGrad2)" stroke-width="2.5" stroke-linecap="round"/>
                         <path d="M74 94 Q86 86, 100 94" fill="none" stroke="url(#wGrad2)" stroke-width="2.5" stroke-linecap="round"/>
-                        <!-- AI nodes -->
                         <circle cx="52" cy="52" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 6px #00d4ff);"/>
                         <circle cx="128" cy="52" r="6.5" fill="#7b2ff7" style="filter: drop-shadow(0 0 6px #7b2ff7);"/>
                         <circle cx="52" cy="112" r="6.5" fill="#ff2d92" style="filter: drop-shadow(0 0 6px #ff2d92);"/>
                         <circle cx="128" cy="112" r="6.5" fill="#00d4ff" style="filter: drop-shadow(0 0 6px #00d4ff);"/>
-                        <!-- Connection lines -->
                         <line x1="58" y1="55" x2="76" y2="68" stroke="#00d4ff" stroke-width="1.5" opacity="0.6"/>
                         <line x1="122" y1="55" x2="104" y2="68" stroke="#7b2ff7" stroke-width="1.5" opacity="0.6"/>
                         <line x1="58" y1="109" x2="76" y2="96" stroke="#ff2d92" stroke-width="1.5" opacity="0.6"/>
@@ -1798,6 +1796,7 @@
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI..." rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
+                        <button class="voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Voice input">🎤</button>
                         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -1807,9 +1806,34 @@
                     </div>
                 </div>
             </div>
+            <div class="voice-lang-bar" id="voiceLangBar">
+                <span>🎤 Voice:</span>
+                <select id="voiceLang" onchange="saveVoiceLang()">
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es-ES">Spanish</option>
+                    <option value="fr-FR">French</option>
+                    <option value="de-DE">German</option>
+                    <option value="it-IT">Italian</option>
+                    <option value="pt-BR">Portuguese (BR)</option>
+                    <option value="ru-RU">Russian</option>
+                    <option value="ja-JP">Japanese</option>
+                    <option value="ko-KR">Korean</option>
+                    <option value="zh-CN">Chinese (Simplified)</option>
+                    <option value="hi-IN">Hindi</option>
+                    <option value="ar-SA">Arabic</option>
+                </select>
+            </div>
             <div class="input-hint">Connected to Render backend - Chat history stored securely on server - No API keys in browser</div>
         </div>
     </main>
+
+    <!-- VOICE RECORDING OVERLAY -->
+    <div class="voice-overlay" id="voiceOverlay">
+        <div class="voice-overlay-icon">🎤</div>
+        <div class="voice-overlay-text" id="voiceText">Listening...</div>
+        <div class="voice-overlay-hint">Speak now — click the mic again to stop</div>
+    </div>
 
     <input type="file" id="fileInput" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,application/pdf" style="display:none" onchange="handleFileSelect(event)" multiple>
 
@@ -1819,7 +1843,6 @@
 
             <div class="auth-logo-wrap">
                 <div class="auth-logo-frame">
-                    <!-- Reuses the exact app logo from the sidebar -->
                     <svg width="42" height="42" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 10px rgba(0,212,255,0.3));">
                         <defs>
                             <linearGradient id="logoGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -1981,8 +2004,8 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let currentChatId = null;
-        let chatSummaries = []; // sidebar list: [{id, title, updatedAt}]
-        let chats = {};         // full chat objects, populated lazily as opened: { [chatId]: {id, title, messages, ...} }
+        let chatSummaries = [];
+        let chats = {};
         let backendUrl = localStorage.getItem('backendUrl') || 'https://multi-ai-chat-1.onrender.com';
         let systemPrompt = localStorage.getItem('systemPrompt') || 'You are a helpful AI assistant.';
         let defaultModel = localStorage.getItem('defaultModel') || 'openai:gpt-4o-mini';
@@ -1992,13 +2015,12 @@
         let isSearchEnabled = webSearchDefault;
 
         async function init() {
-            await loadChats(); // load this account's chat history from the server
+            await loadChats();
             populateProviders();
             renderChatList();
             loadSettings();
             checkConnection();
             syncSearchUI();
-            // If the saved default model is disabled (e.g. paid-only), fall back to a valid one
             const modelSelect = document.getElementById('modelSelect');
             const savedOption = Array.from(modelSelect.options).find(function(o) { return o.value === defaultModel; });
             if (!savedOption || savedOption.disabled) {
@@ -2006,7 +2028,6 @@
                 localStorage.setItem('defaultModel', defaultModel);
             }
             modelSelect.value = defaultModel;
-            // Always start fresh — don't auto-resume the last active chat
             currentChatId = null;
             showWelcome();
         }
@@ -2044,10 +2065,6 @@
             document.getElementById('fileInput').click();
         }
 
-        // ---- Resize + compress an image BEFORE it becomes an attachment ----
-        // This ensures the model receives a clean, reasonably-sized image instead
-        // of a huge raw photo. 1568px matches the practical sweet spot most vision
-        // models use internally — sending much larger doesn't improve quality.
         function resizeAndEncodeImage(file, maxDimension) {
             maxDimension = maxDimension || 1568;
             return new Promise(function(resolve, reject) {
@@ -2076,16 +2093,15 @@
                         ctx.imageSmoothingQuality = 'high';
                         ctx.drawImage(img, 0, 0, width, height);
 
-                        // JPEG at 0.9 quality keeps detail while controlling file size
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                        const base64 = dataUrl.split(',')[1]; // strip the "data:image/jpeg;base64," prefix
+                        const base64 = dataUrl.split(',')[1];
 
                         resolve({
                             type: 'image',
-                            data: base64,          // clean base64, no prefix — this is what gets SENT
+                            data: base64,
                             mimeType: 'image/jpeg',
                             name: file.name,
-                            preview: dataUrl        // full data URL only for the UI thumbnail
+                            preview: dataUrl
                         });
                     };
                     img.onerror = reject;
@@ -2163,7 +2179,6 @@
         function removeAttachment() {
             currentAttachment = null;
             renderAttachmentPreview();
-            // Reset the file input so selecting the same file again triggers the change event
             const fileInput = document.getElementById('fileInput');
             if (fileInput) fileInput.value = '';
         }
@@ -2176,7 +2191,6 @@
             renderChatList();
             showWelcome();
             removeAttachment();
-            // If the saved default model is disabled (e.g. paid-only), fall back to a valid one
             const modelSelect = document.getElementById('modelSelect');
             const selectedOption = modelSelect.options[modelSelect.selectedIndex];
             if (!selectedOption || selectedOption.disabled) {
@@ -2190,7 +2204,6 @@
         }
 
         async function loadChat(id) {
-            // Already loaded this session? Don't re-fetch.
             if (chats[id]) {
                 currentChatId = id;
                 renderChatList();
@@ -2318,10 +2331,6 @@
             });
         }
 
-        // ---- Compress an already-sent image down to a tiny thumbnail for long-term history storage ----
-        // Called AFTER a message with an image has been successfully sent and the AI has responded.
-        // Replaces the full-resolution base64 in chat.messages with this tiny version, since we only
-        // need it for visual reference in history, not for re-sending to the AI.
         function compressImageForHistory(fullDataUrl, maxDimension, quality) {
             maxDimension = maxDimension || 160;
             quality = quality || 0.5;
@@ -2346,12 +2355,11 @@
                     ctx.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
-                img.onerror = function() { resolve(null); }; // if compression fails, drop the image rather than break saving
+                img.onerror = function() { resolve(null); };
                 img.src = fullDataUrl;
             });
         }
 
-        // Shrink an image attachment in chat history after the AI has responded
         async function shrinkImageInHistory(chatId, messageId) {
             const chat = chats[chatId];
             if (!chat) return;
@@ -2361,23 +2369,19 @@
 
             const thumb = await compressImageForHistory(msg.attachment.preview);
             if (thumb) {
-                // Keep only the tiny thumbnail for history; drop the large base64
                 msg.attachment.preview = thumb;
-                msg.attachment.base64 = null; // no longer needed once the AI has already answered
+                msg.attachment.base64 = null;
                 msg.attachment.isThumbnailOnly = true;
             } else {
-                // If compression failed for any reason, drop the attachment entirely
                 msg.attachment = null;
             }
         }
 
-        // ---- Save the current chat to the server. Replaces the old localStorage-based saveChats(). ----
         async function saveChats() {
             if (!currentChatId || !chats[currentChatId]) return;
 
             const chat = chats[currentChatId];
 
-            // Auto-generate a title from the first user message, if not set yet
             if (!chat.title || chat.title === 'New Chat') {
                 const firstUserMsg = chat.messages.find(function(m) { return m.role === 'user'; });
                 if (firstUserMsg) {
@@ -2399,7 +2403,6 @@
                     showToast('Could not save chat', 'error');
                     return;
                 }
-                // Update the sidebar summary in-memory without a full re-fetch
                 const existingSummary = chatSummaries.find(function(c) { return c.id === currentChatId; });
                 if (existingSummary) {
                     existingSummary.title = chat.title;
@@ -2415,9 +2418,6 @@
             }
         }
 
-        // ---- Load all chats for the logged-in user from the server. ----
-        // Only fetches summaries (id, title, updatedAt) for the sidebar —
-        // full message content loads on-demand when a chat is opened.
         async function loadChats() {
             try {
                 const response = await fetch(backendUrl + '/api/chats', {
@@ -2437,8 +2437,6 @@
         }
 
         function appendMessage(role, content, attachment, animate, msgData) {
-            // Normalize the stored 'assistant' role to 'bot' so restored messages
-            // get the correct DOM class, avatar, and action-row rendering.
             if (role === 'assistant') role = 'bot';
 
             const msgs = document.getElementById('messages');
@@ -2457,8 +2455,6 @@
                 }
             }
 
-            // For user messages, ensure a stable id exists (generate + persist once) so
-            // the Retry/Edit/Copy buttons can reference this message across reloads.
             let userMsgId = null;
             if (role === 'user') {
                 if (msgData && msgData.id) {
@@ -2495,9 +2491,7 @@
 
             div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div>' + userActionsHtml + '</div>';
 
-            // For assistant messages restored from saved chats, recreate the full action row
             if (role === 'bot' && msgData) {
-                // Restore or persist the timestamp for this message
                 if (!msgData.timestamp) {
                     msgData.timestamp = Date.now();
                     if (currentChatId && chats[currentChatId]) {
@@ -2510,7 +2504,6 @@
                 }
                 let msgId = msgData.msgId;
                 if (!msgId) {
-                    // Legacy chat data without a saved msgId — generate one ONCE and persist it
                     msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
                     msgData.msgId = msgId;
                     if (currentChatId && chats[currentChatId]) {
@@ -2522,7 +2515,6 @@
                     }
                 }
 
-                // Fall back to the currently selected model for legacy messages that lack provider/model info
                 const parts = (document.getElementById('modelSelect').value || ':').split(':');
                 const provider = msgData.provider || (parts[0] || 'AI');
                 const model = msgData.model || (parts[1] || '');
@@ -2534,13 +2526,11 @@
                 div.dataset.msgId = msgId;
                 div.dataset.fullText = content;
 
-                // Restore like/dislike state from localStorage (current) or the saved chat data
                 const savedRating = localStorage.getItem('rating_' + msgId) || msgData.rating || null;
                 if (savedRating) {
                     const btn = document.getElementById(savedRating + '_' + msgId);
                     if (btn) btn.classList.add('active-' + savedRating);
                 }
-                // Restore bookmark state from the saved chat data
                 if (msgData.bookmarked) {
                     const bmItem = div.querySelector('.bookmark-item');
                     if (bmItem) bmItem.classList.add('bookmarked');
@@ -2580,7 +2570,6 @@
             const displayName = nickname || fullName;
 
             if (displayName) {
-                // Keep "Multi-AI" styled the same way, just personalize the rest
                 headingEl.innerHTML = '<span class="gradient-text">Welcome, ' + escapeHtml(displayName) + '</span>';
             } else {
                 headingEl.innerHTML = '<span class="gradient-text">Multi-AI</span> Chatbot';
@@ -2608,7 +2597,6 @@
             sendMessage();
         }
 
-        // ---- Stable, unique ID generator — call ONCE per message at creation time ----
         function generateMessageId() {
             return 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
         }
@@ -2619,7 +2607,6 @@
             const attachment = overrideAttachment !== undefined ? overrideAttachment : currentAttachment;
             if ((!text && !attachment) || isGenerating) return;
 
-            // Create a new chat if none is active (e.g. after page load with welcome screen)
             if (!currentChatId || !chats[currentChatId]) {
                 const id = 'chat_' + Date.now();
                 chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
@@ -2650,8 +2637,6 @@
                 mimeType: attachment.mimeType
             } : null;
 
-            // Create the user message object with a stable id ONCE, before rendering or pushing.
-            // This ensures the id in the DOM matches the id in chat.messages.
             const userMsg = {
                 id: generateMessageId(),
                 role: 'user',
@@ -2660,7 +2645,6 @@
                 timestamp: Date.now()
             };
 
-            // Push to chat data FIRST, then render with msgData so appendMessage uses the same id
             chats[currentChatId].messages.push(userMsg);
 
             if (chats[currentChatId].messages.length === 1) {
@@ -2669,7 +2653,6 @@
                 renderChatList();
             }
 
-            // Render the user message, passing the message object as msgData so the stable id is used
             appendMessage('user', displayContent, msgAttachment, true, userMsg);
 
             if (overrideText === undefined) {
@@ -2701,7 +2684,6 @@
             }
         }
 
-        // ---- Event delegation: Retry / Edit / Copy buttons under user messages ----
         document.getElementById('chatContainer').addEventListener('click', function(e) {
             const btn = e.target.closest('.user-message-actions .message-action-btn');
             if (!btn) return;
@@ -2721,29 +2703,22 @@
             }
 
             if (action === 'edit') {
-                // Put the message text back into the input box for editing,
-                // and remove this message + everything after it (since editing
-                // means replacing this turn and getting a fresh AI response).
                 const input = document.getElementById('userInput');
                 input.value = userMessage.content;
                 input.focus();
                 autoResize(input);
-                chat.messages = chat.messages.slice(0, msgIndex); // drop this msg + AI reply after it
+                chat.messages = chat.messages.slice(0, msgIndex);
                 saveChats();
-                // Re-render the chat up to this point
                 const msgs = document.getElementById('messages');
                 msgs.innerHTML = '';
                 chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
             }
 
             if (action === 'retry') {
-                // Re-send this exact same user message: drop it + everything after,
-                // then resend it as a fresh message to get a new AI response.
                 const textToRetry = userMessage.content;
                 const attachmentToRetry = userMessage.attachment || null;
-                chat.messages = chat.messages.slice(0, msgIndex); // drop this msg + AI reply after it
+                chat.messages = chat.messages.slice(0, msgIndex);
                 saveChats();
-                // Re-render the chat up to this point
                 const msgs = document.getElementById('messages');
                 msgs.innerHTML = '';
                 chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
@@ -2752,14 +2727,10 @@
         });
 
         async function streamFromBackend(provider, model, text, botMsg, attachmentOverride) {
-            // Web search is handled server-side via webSearch flag
             if (isSearchEnabled) {
                 addHTMLMessage('<span style="color:var(--text-secondary)">🔍 Searching web...</span>', 'system');
             }
 
-            // Build the payload using the FULL conversation history from chat.messages.
-            // The last entry is the user message we just added in sendMessage(), so it's
-            // already included. We prepend the system prompt and map to {role, content}.
             const messages = [
                 { role: 'system', content: systemPrompt },
                 ...chats[currentChatId].messages.map(function(m) {
@@ -2798,7 +2769,6 @@
                 throw new Error(err.error || 'HTTP ' + response.status);
             }
 
-            // Read search sources from header if present
             const sourcesHeader = response.headers.get('X-Search-Sources');
             if (sourcesHeader) {
                 try {
@@ -2813,9 +2783,6 @@
                 }
             }
 
-            // Create the assistant message object with a stable id ONCE, before streaming.
-            // Push it to chat.messages immediately so the full conversation history (including
-            // this in-progress response) is always in sync. We update its content as chunks arrive.
             const assistantMsg = {
                 id: generateMessageId(),
                 role: 'assistant',
@@ -2851,24 +2818,18 @@
                         const json = JSON.parse(data);
                         let chunk = '';
                         if (json.candidates) {
-                            // Gemini-style chunk: data.candidates[0].content.parts[].text
                             const parts = json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts;
                             if (parts && parts.length > 0) {
                                 for (const part of parts) {
-                                    // Skip parts without a 'text' key (some parts only contain 'thoughtSignature')
                                     if (part && part.text) {
                                         chunk += part.text;
                                     }
                                 }
                             }
                         } else {
-                            // OpenAI-style chunk: data.choices[0].delta.content
                             chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
                         }
                         if (chunk) {
-                            // Write chunks into the assistant message object in chat.messages,
-                            // not just a disconnected local variable. This keeps the stored
-                            // conversation history in sync with what's being streamed.
                             assistantMsg.content += chunk;
                             contentDiv.innerHTML = formatContent(assistantMsg.content);
                             scrollToBottom();
@@ -2877,9 +2838,6 @@
                 }
             }
 
-            // Shrink any image attachment in this turn's user message down to a tiny
-            // thumbnail for long-term history storage, keeping storage small proactively.
-            // This runs BEFORE the final saveChats() so the large base64 is never persisted.
             const lastUserMsg = chats[currentChatId].messages.find(function(m) {
                 return m.role === 'user' && m.attachment && m.attachment.type === 'image';
             });
@@ -2887,7 +2845,6 @@
                 await shrinkImageInHistory(currentChatId, lastUserMsg.id);
             }
 
-            // Persist the completed response so it survives reloads
             saveChats();
 
             const meta = document.createElement('div');
@@ -2895,10 +2852,9 @@
             meta.innerHTML = createMessageActions(provider, model, assistantMsg.content, assistantMsg.msgId, assistantMsg.timestamp);
             botMsg.querySelector('.message-content-wrapper').appendChild(meta);
             botMsg.dataset.msgId = assistantMsg.msgId;
-            botMsg.dataset.fullText = assistantMsg.content; // stored for Read Aloud without re-parsing HTML
+            botMsg.dataset.fullText = assistantMsg.content;
         }
 
-        // ---- SVG icons (Lucide/feather style) for message action buttons ----
         const SVG_COPY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
         const SVG_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         const SVG_VOLUME = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
@@ -3034,17 +2990,14 @@
             if (!chat) return;
             const idx = chat.messages.findIndex(function(m) { return m.msgId === msgId; });
             if (idx === -1) return;
-            // Remove this message and everything after it
             const removed = chat.messages.splice(idx);
             removed.forEach(function(m) {
                 if (m.role === 'assistant' && m.msgId) localStorage.removeItem('rating_' + m.msgId);
             });
             saveChats();
-            // Re-render the chat up to this point
             const msgs = document.getElementById('messages');
             msgs.innerHTML = '';
             chat.messages.forEach(function(m) { appendMessage(m.role, m.content, m.attachment, false, m); });
-            // If the removed message was a user message, resend it; if assistant, resend the last user message
             const lastUser = chat.messages[chat.messages.length - 1];
             if (!lastUser || lastUser.role !== 'user') return;
             const modelVal = document.getElementById('modelSelect').value;
@@ -3129,12 +3082,10 @@
         }
 
         function toggleSpeak(msgId, btn) {
-            // If already speaking this message, stop it
             if (currentUtterance && btn.classList.contains('speaking')) {
                 stopSpeech();
                 return;
             }
-            // Stop any other message currently being read
             stopSpeech();
             speechGeneration++;
 
@@ -3146,7 +3097,7 @@
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.0;
             utterance.onend = function() {
-                if (myGen !== speechGeneration) return; // a newer action superseded this one
+                if (myGen !== speechGeneration) return;
                 btn.classList.remove('speaking');
                 if (currentUtterance === utterance) currentUtterance = null;
             };
@@ -3167,11 +3118,9 @@
             const current = localStorage.getItem('rating_' + msgId);
 
             if (current === rating) {
-                // Clicking the same rating again removes it
                 localStorage.removeItem('rating_' + msgId);
                 likeBtn.classList.remove('active-like');
                 dislikeBtn.classList.remove('active-dislike');
-                // Also clear from chat data so it stays removed across reloads/imports
                 if (currentChatId && chats[currentChatId]) {
                     const msg = chats[currentChatId].messages.find(function(m) { return m.msgId === msgId; });
                     if (msg) {
@@ -3185,7 +3134,6 @@
             localStorage.setItem('rating_' + msgId, rating);
             likeBtn.classList.toggle('active-like', rating === 'like');
             dislikeBtn.classList.toggle('active-dislike', rating === 'dislike');
-            // Persist rating inside the chat data so it survives account switches and imported chats
             if (currentChatId && chats[currentChatId]) {
                 const msg = chats[currentChatId].messages.find(function(m) { return m.msgId === msgId; });
                 if (msg) {
@@ -3210,10 +3158,8 @@
             const chat = chats[currentChatId];
             if (!chat || chat.messages.length < 2) return;
 
-            // Remove the last assistant message (both from data and from the DOM)
             const lastMsg = chat.messages[chat.messages.length - 1];
-            if (lastMsg.role !== 'assistant') return; // safety check
-            // Clean up orphaned localStorage rating key for the removed message
+            if (lastMsg.role !== 'assistant') return;
             if (lastMsg.msgId) localStorage.removeItem('rating_' + lastMsg.msgId);
             chat.messages.pop();
             saveChats();
@@ -3221,7 +3167,6 @@
             const msgsContainer = document.getElementById('messages');
             if (msgsContainer.lastElementChild) msgsContainer.lastElementChild.remove();
 
-            // Find the last user message to resend
             const lastUserMsg = chat.messages[chat.messages.length - 1];
             if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
@@ -3277,7 +3222,7 @@
             if (!select || select.options.length > 0) return;
             const modelSelect = document.getElementById('modelSelect');
             for (const option of modelSelect.options) {
-                if (option.disabled) continue; // skip disabled (e.g. paid-only) models
+                if (option.disabled) continue;
                 const o = document.createElement('option');
                 o.value = option.value;
                 o.textContent = option.textContent;
@@ -3366,13 +3311,10 @@
             setTimeout(function() { toast.remove(); }, 3000);
         }
 
-
         function updateLoggedInAs() {
             const username = localStorage.getItem('authUsername') || '';
-            // Sidebar indicator below the Settings button (always visible when expanded)
             const el = document.getElementById('sidebarLoggedInAs');
             if (el) el.textContent = username ? username : '';
-            // Settings Data tab label (kept in sync with the sidebar)
             const settingsLabelEl = document.getElementById('loggedInAs');
             if (settingsLabelEl) settingsLabelEl.textContent = username ? 'Logged in as ' + username : 'Not logged in';
         }
@@ -3416,7 +3358,6 @@
                     submitBtn.textContent = 'Log in';
                     switchText.innerHTML = 'Don\'t have an account? <span class="auth-link" id="authSwitchLink">Sign up</span>';
                 }
-                // re-bind the new span since innerHTML replaced it
                 document.getElementById('authSwitchLink').addEventListener('click', toggleMode);
             }
             switchLink.addEventListener('click', toggleMode);
@@ -3464,14 +3405,13 @@
                         return;
                     }
 
-                    // Save auth token + username, then hide the auth screen
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('authUsername', data.username);
-                    await loadChats();  // load THIS account's chat history from the server
-                    renderChatList();   // display it in the sidebar
+                    await loadChats();
+                    renderChatList();
                     overlay.style.display = 'none';
                     updateLoggedInAs();
-                    updateWelcomeHeading(); // refresh with this account's name
+                    updateWelcomeHeading();
                     showToast('Welcome, ' + data.username + '!', 'success');
 
                 } catch (err) {
@@ -3484,7 +3424,6 @@
             submitBtn.addEventListener('click', submitAuth);
             passwordInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') submitAuth(); });
 
-            // ---- Check auth state fresh each time the overlay is shown ----
             function checkAuthState() {
                 const existingToken = localStorage.getItem('authToken');
                 if (existingToken) {
@@ -3494,7 +3433,6 @@
                 }
             }
 
-            // ---- On page load: check if already logged in ----
             checkAuthState();
         })();
 
@@ -3511,7 +3449,6 @@
                 sidebar.classList.toggle('collapsed', collapsed);
             });
 
-            // --- Mobile: off-canvas drawer open/close ---
             function openMobileSidebar() {
                 sidebar.classList.add('open');
                 if (sidebarBackdrop) sidebarBackdrop.classList.add('show');
@@ -3532,14 +3469,12 @@
             if (sidebarBackdrop) {
                 sidebarBackdrop.addEventListener('click', closeMobileSidebar);
             }
-            // Close the drawer after selecting a chat or starting a new one
             document.addEventListener('click', function(e) {
                 if (e.target.closest('.chat-history-item') || e.target.closest('#newChatBtn')) {
                     closeMobileSidebar();
                 }
             });
 
-            // --- Tab switching in settings modal ---
             const navItems = document.querySelectorAll('.settings-nav-item');
             const panes = document.querySelectorAll('.settings-pane');
             navItems.forEach(function(item) {
@@ -3561,10 +3496,9 @@
                 if (el) el.textContent = displayName ? displayName.charAt(0).toUpperCase() : 'U';
             }
 
-            // --- Modal open/close ---
             const overlay = document.getElementById('settingsModalOverlay');
             document.getElementById('openSettingsBtn').addEventListener('click', function() {
-                openSettings(); // populates providers + default model select + existing fields
+                openSettings();
                 const currentUsername = localStorage.getItem('authUsername') || '';
                 document.getElementById('profileNameInput').value = currentUsername ? (localStorage.getItem('profileName_' + currentUsername) || '') : '';
                 document.getElementById('profileNicknameInput').value = currentUsername ? (localStorage.getItem('profileNickname_' + currentUsername) || '') : '';
@@ -3581,7 +3515,6 @@
                 if (e.target === overlay) closeSettings();
             });
 
-            // --- Web search default toggle (persisted) ---
             const wsToggle = document.getElementById('webSearchDefaultToggle');
             wsToggle.addEventListener('click', function() {
                 webSearchDefault = !webSearchDefault;
@@ -3591,7 +3524,6 @@
                 syncSearchUI();
             });
 
-            // --- Reduce motion toggle (persisted) ---
             const reduceMotionToggle = document.getElementById('reduceMotionToggle');
             reduceMotionToggle.addEventListener('click', function() {
                 const on = !reduceMotionToggle.classList.contains('on');
@@ -3600,37 +3532,28 @@
                 document.body.classList.toggle('reduce-motion', on);
             });
 
-            // --- Clear all chat history (destructive, from Data tab) ---
             document.getElementById('clearAllHistoryBtn').addEventListener('click', function() {
                 if (clearAllChats()) closeSettings();
             });
 
-            // --- Log out (from Data tab) ---
             document.getElementById('logoutBtn').addEventListener('click', function() {
-                console.log('Logout clicked, clearing:', localStorage.getItem('authToken'));
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('authUsername');
-                console.log('After clear:', localStorage.getItem('authToken'));
-                // Reset in-memory chat state — do NOT call saveChats() here, that would
-                // overwrite this user's real saved history with an empty object
                 chats = {};
                 chatSummaries = [];
                 currentChatId = null;
                 renderChatList();
                 showWelcome();
                 removeAttachment();
-                // Clear the sidebar logged-in indicator back to empty
                 updateLoggedInAs();
-                // Reset auth form to login mode and clear inputs
                 if (typeof resetAuthForm === 'function') resetAuthForm();
                 closeSettings();
                 document.getElementById('authOverlay').style.display = 'flex';
                 showToast('Logged out', 'info');
             });
 
-            // --- Save settings: persist everything + sync app state ---
             document.getElementById('settingsSaveBtn').addEventListener('click', function() {
-                saveSettings(); // persists backend url, system prompt, default model; closes modal + toast
+                saveSettings();
                 const savedUsername = localStorage.getItem('authUsername') || '';
                 if (savedUsername) {
                     localStorage.setItem('profileName_' + savedUsername, document.getElementById('profileNameInput').value.trim());
@@ -3641,7 +3564,6 @@
                 updateWelcomeHeading();
             });
 
-            // Apply reduced-motion preference on page load
             if (localStorage.getItem('reduceMotion') === 'true') {
                 document.body.classList.add('reduce-motion');
             }
@@ -3652,27 +3574,132 @@
         updateWelcomeHeading();
         init();
 
-        // ---- Deep-link handling: open a shared chat + highlight the referenced message ----
-        (function() {
-            const params = new URLSearchParams(window.location.search);
-            const chatId = params.get('chat');
-            const msgId = params.get('msg');
-            if (chatId) {
-                loadChat(chatId).then(function() {
-                    if (msgId) {
-                        // Scroll to and highlight the referenced message
-                        setTimeout(function() {
-                            const el = document.querySelector('[data-msg-id="' + msgId + '"]');
-                            if (el) {
-                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                el.classList.add('msg-highlight');
-                                setTimeout(function() { el.classList.remove('msg-highlight'); }, 2500);
-                            }
-                        }, 300);
-                    }
-                });
+        // ============================================
+        // VOICE INPUT - CORRECTED IMPLEMENTATION
+        // ============================================
+        let recognition = null;
+        let isRecording = false;
+
+        function isSecureContextOk() {
+            return window.isSecureContext;
+        }
+
+        function initVoice() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition || !isSecureContextOk()) {
+                const voiceBtn = document.getElementById('voiceBtn');
+                const langBar = document.querySelector('.voice-lang-bar');
+                if (voiceBtn) voiceBtn.style.display = 'none';
+                if (langBar) langBar.style.display = 'none';
+                return;
             }
-        })();
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            const savedLang = localStorage.getItem('voiceLang') || 'en-US';
+            const langSelect = document.getElementById('voiceLang');
+            if (langSelect) langSelect.value = savedLang;
+            recognition.lang = savedLang;
+
+            recognition.onstart = function () {
+                isRecording = true;
+                document.getElementById('voiceBtn').classList.add('recording');
+                document.getElementById('voiceOverlay').classList.add('active');
+                document.getElementById('voiceText').textContent = 'Listening...';
+            };
+
+            recognition.onresult = function (event) {
+                let finalText = '';
+                let interimText = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalText += transcript;
+                    } else {
+                        interimText += transcript;
+                    }
+                }
+
+                const input = document.getElementById('userInput');
+                if (interimText) {
+                    input.value = interimText;
+                    autoResize(input);
+                }
+                if (finalText) {
+                    input.value = finalText;
+                    autoResize(input);
+                    document.getElementById('voiceText').textContent = 'Processing...';
+                }
+            };
+
+            recognition.onerror = function (event) {
+                let msg = 'Voice error';
+                if (event.error === 'no-speech') msg = 'No speech detected — try again';
+                else if (event.error === 'audio-capture') msg = 'No microphone found on this device';
+                else if (event.error === 'not-allowed') {
+                    msg = 'Microphone access denied. Check your browser/site permissions in Settings.';
+                } else if (event.error === 'network') msg = 'Network error — voice recognition needs internet';
+                else if (event.error === 'aborted') {
+                    stopVoice();
+                    return;
+                }
+
+                showToast('❌ ' + msg, 'error');
+                stopVoice();
+            };
+
+            recognition.onend = function () {
+                stopVoice();
+                const input = document.getElementById('userInput');
+                if (input.value.trim() && !isGenerating) {
+                    setTimeout(function () { sendMessage(); }, 400);
+                }
+            };
+        }
+
+        function toggleVoice() {
+            if (!recognition) {
+                initVoice();
+                if (!recognition) {
+                    showToast('Voice input is not supported on this browser/device', 'error');
+                    return;
+                }
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                return;
+            }
+
+            recognition.lang = document.getElementById('voiceLang').value;
+
+            try {
+                recognition.start();
+            } catch (err) {
+                console.error('Failed to start voice recognition:', err);
+                showToast('❌ Could not start voice input — try again', 'error');
+            }
+        }
+
+        function stopVoice() {
+            isRecording = false;
+            document.getElementById('voiceBtn').classList.remove('recording');
+            document.getElementById('voiceOverlay').classList.remove('active');
+        }
+
+        function saveVoiceLang() {
+            const lang = document.getElementById('voiceLang').value;
+            localStorage.setItem('voiceLang', lang);
+            if (recognition) recognition.lang = lang;
+            showToast('🌐 Voice: ' + lang, 'info');
+        }
+
+        // Initialize on load
+        initVoice();
 
         // ============================================
         // PWA: SERVICE WORKER REGISTRATION
