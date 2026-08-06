@@ -149,26 +149,35 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     });
   }
 
-  // 1. Always try the user's actual dropdown selection FIRST, exactly as before.
+  // 1. Always try the user's actual dropdown selection FIRST — both Gemini keys
+  //    if it's a Gemini model, before considering any fallback.
   if (userProvider === 'gemini') {
     pushGemini(process.env.GEMINI_API_KEY, userModel, 'User selection: Gemini (' + userModel + ') Key 1');
+    if (process.env.GEMINI_API_KEY_2) {
+      pushGemini(process.env.GEMINI_API_KEY_2, userModel, 'User selection: Gemini (' + userModel + ') Key 2');
+    }
   } else if (userProvider === 'bigmodel') {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, userModel, 'User selection: BigModel (' + userModel + ')');
   } else if (userProvider === 'groq') {
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')');
   }
 
-  // 2. Fallback ladder — only added if not already identical to the user's selection.
-  const fallbackModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
-  fallbackModels.forEach(function(m) {
-    if (!(userProvider === 'gemini' && userModel === m)) {
-      pushGemini(process.env.GEMINI_API_KEY, m, 'Fallback: Gemini (' + m + ') Key 1');
-    }
-    // Also try the second Gemini key, if configured, for extra quota headroom
-    if (process.env.GEMINI_API_KEY_2) {
-      pushGemini(process.env.GEMINI_API_KEY_2, m, 'Fallback: Gemini (' + m + ') Key 2');
-    }
-  });
+  // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically chose
+  //    gemini-flash-latest, since that model should fall back straight to
+  //    BigModel/Groq instead of routing through the Flash Lite models.
+  const userChoseFlashLatest = (userProvider === 'gemini' && userModel === 'gemini-flash-latest');
+
+  if (!userChoseFlashLatest) {
+    const fallbackModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
+    fallbackModels.forEach(function(m) {
+      if (!(userProvider === 'gemini' && userModel === m)) {
+        pushGemini(process.env.GEMINI_API_KEY, m, 'Fallback: Gemini (' + m + ') Key 1');
+      }
+      if (process.env.GEMINI_API_KEY_2) {
+        pushGemini(process.env.GEMINI_API_KEY_2, m, 'Fallback: Gemini (' + m + ') Key 2');
+      }
+    });
+  }
 
   if (!(userProvider === 'bigmodel')) {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel');
