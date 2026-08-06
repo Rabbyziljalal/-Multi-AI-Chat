@@ -1704,6 +1704,8 @@
                         <option value="openai:gpt-4o-mini" disabled>OpenAI - GPT-4o Mini (Not configured)</option>
                         <option value="openai:gpt-4o" disabled>OpenAI - GPT-4o (Not configured)</option>
                         <option value="gemini:gemini-flash-latest">Google - Gemini Flash Latest</option>
+                        <option value="gemini:gemini-3.5-flash-lite">Google - Gemini 3.5 Flash Lite</option>
+                        <option value="gemini:gemini-3.1-flash-lite">Google - Gemini 3.1 Flash Lite</option>
                         <option value="gemini:gemini-2.5-pro" disabled>Google - Gemini 2.5 Pro (Paid only)</option>
                         <option value="bigmodel:glm-4-flash">BigModel - GLM-4 Flash</option>
                         <option value="bigmodel:glm-4">BigModel - GLM-4</option>
@@ -2014,7 +2016,7 @@
             const modelSelect = document.getElementById('modelSelect');
             const savedOption = Array.from(modelSelect.options).find(function(o) { return o.value === defaultModel; });
             if (!savedOption || savedOption.disabled) {
-                defaultModel = 'gemini:gemini-flash-latest';
+                defaultModel = 'gemini:gemini-3.5-flash-lite';
                 localStorage.setItem('defaultModel', defaultModel);
             }
             modelSelect.value = defaultModel;
@@ -2192,7 +2194,7 @@
             const modelSelect = document.getElementById('modelSelect');
             const selectedOption = modelSelect.options[modelSelect.selectedIndex];
             if (!selectedOption || selectedOption.disabled) {
-                defaultModel = 'gemini:gemini-flash-latest';
+                defaultModel = 'gemini:gemini-3.5-flash-lite';
                 localStorage.setItem('defaultModel', defaultModel);
             }
             modelSelect.value = defaultModel;
