@@ -6,6 +6,11 @@
     <title>Multi-AI Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0a0a0d">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -767,6 +772,8 @@
         .message-content li { margin-bottom: 6px; }
         .message-content strong { color: var(--accent-hover); font-weight: 600; }
         .message-content em { color: var(--text-secondary); }
+        .message-content .katex { color: var(--text-primary); font-size: 1.05em; }
+        .message-content .katex-display { margin: 12px 0; overflow-x: auto; overflow-y: hidden; }
         .message-content a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid rgba(0,212,255,0.2); transition: border-color 0.2s; }
         .message-content a:hover { border-color: var(--cyan); }
         .message-content blockquote {
@@ -1980,6 +1987,11 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+        marked.setOptions({
+            breaks: true,   // single \n becomes <br>, matches chat-style text (no need for blank lines between lines)
+            gfm: true        // GitHub-flavored markdown: enables tables, strikethrough, etc.
+        });
+
         let currentChatId = null;
         let chatSummaries = []; // sidebar list: [{id, title, updatedAt}]
         let chats = {};         // full chat objects, populated lazily as opened: { [chatId]: {id, title, messages, ...} }
@@ -2549,19 +2561,35 @@
 
             if (!animate) div.style.animation = 'none';
             msgs.appendChild(div);
+            renderMathIn(div); // NEW: render any LaTeX math in this message
             scrollToBottom();
             return div;
         }
 
         function formatContent(text) {
-            text = escapeHtml(text);
-            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(0,212,255,0.2);">$1</a>');
-            text = text.replace(/\n/g, '<br>');
-            return text;
+            if (!text) return '';
+            const rawHtml = marked.parse(text);          // full markdown -> HTML (headings, lists, tables, code, bold, etc.)
+            return DOMPurify.sanitize(rawHtml);            // strip anything unsafe before it's ever inserted as innerHTML
+        }
+
+        // Runs KaTeX auto-render on a DOM element, converting any $...$ or $$...$$
+        // patterns inside it into properly formatted math. Safe to call multiple
+        // times on the same element (KaTeX skips already-rendered parts).
+        function renderMathIn(element) {
+            if (typeof renderMathInElement === 'undefined' || !element) return;
+            try {
+                renderMathInElement(element, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false },
+                        { left: '\\(', right: '\\)', display: false },
+                        { left: '\\[', right: '\\]', display: true }
+                    ],
+                    throwOnError: false // don't crash the whole message if one formula has a typo
+                });
+            } catch (err) {
+                console.error('KaTeX render error:', err);
+            }
         }
 
         function escapeHtml(text) {
@@ -2876,6 +2904,10 @@
                     } catch {}
                 }
             }
+
+            // (existing streaming while-loop ends here)
+
+            renderMathIn(contentDiv); // NEW: render math now that the full response has arrived
 
             // Shrink any image attachment in this turn's user message down to a tiny
             // thumbnail for long-term history storage, keeping storage small proactively.
@@ -3352,6 +3384,7 @@
             div.className = 'message ' + sender;
             div.innerHTML = '<div class="message-content">' + html + '</div>';
             msgs.appendChild(div);
+            renderMathIn(div); // NEW
             scrollToBottom();
             return div;
         }
@@ -3642,7 +3675,7 @@
             });
 
             // Apply reduced-motion preference on page load
-            if (localStorage.getItem('reduceMotion') === 'true') {
+             if (localStorage.getItem('reduceMotion') === 'true') {
                 document.body.classList.add('reduce-motion');
             }
 
