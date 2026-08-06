@@ -4,6 +4,7 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { getStreamingResponse } = require('./services/aiProvider');
 require('dotenv').config();
 
 const app = express();
@@ -640,30 +641,25 @@ app.post('/chat', requireAuth, async (req, res) => {
     });
   }
 
-  // ---- Call with automatic fallback ----
-  const result = await callWithFallback(provider, model, finalMessages, imageBase64, imageMimeType, pdfText);
-
-  if (!result.ok) {
-    console.error('All providers failed:', result.errText);
-    return res.status(result.status || 500).json({
-      error: 'All AI providers are currently at capacity, please try again in a moment.'
-    });
-  }
-
+  // ---- Call with automatic fallback chain ----
   try {
+    const { response: providerResponse } = await getStreamingResponse(
+      provider, model, finalMessages, imageBase64, imageMimeType, pdfText
+    );
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Search-Sources', encodeURIComponent(JSON.stringify(sources)));
 
-    const reader = result.response.body;
+    const reader = providerResponse.body;
     reader.on('data', (chunk) => res.write(chunk));
     reader.on('end', () => res.end());
     reader.on('error', () => res.end());
 
   } catch (error) {
-    console.error('Streaming error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Chat error (all providers failed):', error.message);
+    res.status(500).json({ error: 'All AI providers are currently unavailable. Please try again shortly.' });
   }
 });
 
