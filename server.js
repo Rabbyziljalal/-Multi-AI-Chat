@@ -222,10 +222,13 @@ async function extractMemoryFact(userMessage) {
         messages: [
           {
             role: 'system',
-            content: `You extract durable personal facts worth remembering long-term from a user's message (name, location, preferences, job, ongoing projects, etc). 
-Reply with ONLY a valid JSON object and nothing else — no explanations, no markdown, no code fences, no text before or after. The entire response must be exactly one of these two forms:
-{"remember": true, "fact": "short factual sentence"} if there's something worth saving,
-or {"remember": false} if not (e.g. for greetings, questions, small talk).
+            content: `You extract durable personal facts worth remembering long-term from a user's message (name, location, preferences, job, ongoing projects, etc).
+
+IMPORTANT: Only save facts that are directly about the USER THEMSELVES (first-person statements like "I am...", "my...", "I like...", "I work as..."). Do NOT save facts about other people the user merely mentions — for example, if the user says "my friend Ridoy plays cricket" or "Ridoy is from Bangladesh", that is information about Ridoy, not about the user, and must NOT be saved. Only extract something if it describes the user's own identity, preferences, situation, or life — not people, places, or things they simply talk about.
+
+Reply with ONLY a JSON object, nothing else:
+{"remember": true, "fact": "short factual sentence about the user"} if there's something worth saving about the USER,
+or {"remember": false} if not (e.g. for greetings, questions, small talk, or facts about someone other than the user).
 Do not save temporary/one-off info (like "what's the weather today").`
           },
           { role: 'user', content: userMessage }
@@ -239,16 +242,13 @@ Do not save temporary/one-off info (like "what's the weather today").`
     const text = data.choices?.[0]?.message?.content?.trim();
     if (!text) return null;
 
-    // Groq sometimes returns non-JSON text (e.g. "I cannot...") instead of the
-    // expected {"remember": ...} object. Parse defensively and return null
-    // silently on failure — this is a background best-effort feature, so a
-    // parse failure is not an error worth logging every time.
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch (parseErr) {
-      return null;
+    } catch {
+      return null; // silently ignore non-JSON responses, as before
     }
+
     if (parsed && parsed.remember && parsed.fact) {
       return parsed.fact;
     }
