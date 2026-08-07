@@ -600,8 +600,23 @@ app.post('/chat', requireAuth, async (req, res) => {
   let finalMessages = messages;
   let sources = [];
 
-  // ---- Build a single combined system message (memory + web search) ----
+  // ---- Build a single combined system message (grounding + memory + web search) ----
   const systemParts = [];
+
+  // NEW: Always include this grounding instruction FIRST — it explicitly tells the
+  // model to treat the conversation history (including its own earlier responses,
+  // such as descriptions or transcriptions of any images or documents the user
+  // shared) as reliable ground truth, and to answer confidently about earlier
+  // topics instead of saying it doesn't have access.
+  systemParts.push(
+    `This is an ongoing conversation. Everything in the message history below — ` +
+    `including your own earlier responses (such as descriptions or transcriptions ` +
+    `of any images or documents the user shared) — is real, accurate context from ` +
+    `this same conversation. Treat it as ground truth. If the user refers back to ` +
+    `something discussed earlier (a problem, an image, a document, a fact), answer ` +
+    `confidently using that prior context — do not say you don't have access to it ` +
+    `or aren't sure, since it is right here in the conversation history.`
+  );
 
   // Inject this user's saved memory
   const memoryFacts = await getMemory(req.username);

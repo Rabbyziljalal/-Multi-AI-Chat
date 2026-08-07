@@ -2781,6 +2781,40 @@
             }
         });
 
+        // ---- Build the messages payload for the AI from the FULL conversation history ----
+        // The ENTIRE chat.messages array is always included — no slicing, no truncation,
+        // no "last N messages" limit. Only raw image/PDF binary data is ever shrunk
+        // (see shrinkImageInHistory), never the text.
+        //
+        // For any user message that had an image/PDF attachment, we add an explicit
+        // note so the model knows an attachment existed at that point — even after the
+        // full-resolution image data gets shrunk to a thumbnail for storage. This keeps
+        // the AI aware that its OWN prior description (the next message in the array)
+        // is clearly "about" that attachment.
+        function buildMessagesPayload(chat) {
+            return chat.messages.map(function(m) {
+                let content = m.content || '';
+
+                // If this is a user message that had an image/PDF attachment, make sure
+                // the text explicitly notes an attachment was here — even after the image
+                // itself gets shrunk to a thumbnail for storage.
+                if (m.role === 'user' && m.attachment) {
+                    const fileName = m.attachment.name || m.attachment.fileName || 'document';
+                    const attachmentNote = m.attachment.type === 'pdf'
+                        ? '[User attached a PDF file: ' + fileName + ']'
+                        : '[User attached an image: ' + fileName + ']';
+                    content = content ? attachmentNote + '\n' + content : attachmentNote;
+                }
+
+                return {
+                    role: m.role === 'assistant' ? 'assistant' : 'user',
+                    content: content
+                };
+            });
+            // IMPORTANT: no slicing, no truncation, no "last N messages" limit here —
+            // the ENTIRE chat.messages array is always included.
+        }
+
         async function streamFromBackend(provider, model, text, botMsg, attachmentOverride) {
             // Web search is handled server-side via webSearch flag
             if (isSearchEnabled) {
@@ -2792,9 +2826,7 @@
             // already included. We prepend the system prompt and map to {role, content}.
             const messages = [
                 { role: 'system', content: systemPrompt },
-                ...chats[currentChatId].messages.map(function(m) {
-                    return { role: m.role, content: m.content };
-                })
+                ...buildMessagesPayload(chats[currentChatId])
             ];
 
             const body = {
