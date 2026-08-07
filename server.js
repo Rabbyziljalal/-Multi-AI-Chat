@@ -259,6 +259,78 @@ Do not save temporary/one-off info (like "what's the weather today").`
   }
 }
 
+// ============================================================
+// EXPLICIT MEMORY SAVE (guaranteed, bypasses the classifier)
+// ============================================================
+// Detects explicit "remember this" / "save this to memory" style requests and
+// saves them IMMEDIATELY and GUARANTEED — bypassing the probabilistic Groq
+// classifier used for automatic/implicit extraction, which can sometimes
+// decide not to save something even when it should.
+//
+// Note: memory is already scoped per-USER (not per-chat), so anything saved
+// here is automatically available in every chat, not just the one it was
+// saved from. No change needed for that part — it already works via
+// getMemory(req.username) in the /chat route.
+
+const EXPLICIT_MEMORY_TRIGGERS = [
+  /remember (that|this)/i,
+  /save (this|that) to (your )?memory/i,
+  /please remember/i,
+  /keep this in mind/i,
+  /don'?t forget/i,
+  /মনে রাখো/,
+  /মনে রেখো/,
+  /মনে রাখবে/,
+  /সেভ কর/,
+  /মেমোরিতে রাখো/
+];
+
+function detectExplicitMemoryRequest(text) {
+  if (typeof text !== 'string') return false;
+  return EXPLICIT_MEMORY_TRIGGERS.some(pattern => pattern.test(text));
+}
+
+// Extract the actual fact when an explicit trigger is detected.
+// Unlike extractMemoryFact() (which asks Groq "should I remember this, yes/no"),
+// this version SKIPS the yes/no decision — the user already explicitly asked to
+// remember it, so we only ask Groq to help phrase it cleanly as a fact. If Groq
+// is unavailable or fails, fall back to saving the raw message text directly
+// rather than losing it.
+async function extractExplicitMemoryFact(userMessage) {
+  if (!process.env.GROQ_API_KEY) {
+    return userMessage.trim(); // no Groq available — save raw text as a safe fallback
+  }
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          {
+            role: 'system',
+            content: `The user explicitly asked you to remember something. Rewrite what they want remembered as a single short, clear factual sentence, removing phrases like "remember that" or "please save this". Reply with ONLY the rewritten sentence, nothing else — no quotes, no JSON, no explanation.`
+          },
+          { role: 'user', content: userMessage }
+        ],
+        max_tokens: 100,
+        temperature: 0
+      })
+    });
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content?.trim();
+    return text || userMessage.trim(); // fallback to raw text if Groq gives nothing usable
+  } catch (err) {
+    console.error('Explicit memory extraction failed, saving raw text instead:', err.message);
+    return userMessage.trim(); // never silently lose an explicit save request
+  }
+}
+
 // Vision-capable models
 const VISION_MODELS = {
   openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
@@ -599,6 +671,32 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   let finalMessages = messages;
   let sources = [];
+  let justSavedFact = null;
+
+  // ---- Explicit save-to-memory requests: detect & save IMMEDIATELY (guaranteed) ----
+  // This bypasses the probabilistic Groq classifier used for automatic/implicit
+  // extraction, which can sometimes decide not to save something even when it should.
+  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+  if (lastUserMsg && typeof lastUserMsg.content === 'string') {
+    if (detectExplicitMemoryRequest(lastUserMsg.content)) {
+      // Explicit request — save immediately and guaranteed, awaited (not
+      // fire-and-forget) so it's saved before the response streams back.
+      try {
+        const fact = await extractExplicitMemoryFact(lastUserMsg.content);
+        await addMemory(req.username, fact);
+        justSavedFact = fact;
+        console.log('Explicitly saved to memory for', req.username, ':', fact);
+      } catch (err) {
+        console.error('Explicit memory save failed:', err.message);
+      }
+    } else {
+      // No explicit request — keep the existing automatic, probabilistic
+      // background extraction as before (fire-and-forget).
+      extractMemoryFact(lastUserMsg.content).then(fact => {
+        if (fact) addMemory(req.username, fact);
+      });
+    }
+  }
 
   // ---- Build a single combined system message (grounding + memory + web search) ----
   const systemParts = [];
@@ -617,6 +715,15 @@ app.post('/chat', requireAuth, async (req, res) => {
     `confidently using that prior context — do not say you don't have access to it ` +
     `or aren't sure, since it is right here in the conversation history.`
   );
+
+  // If an explicit save just happened, let the AI acknowledge it in its response
+  if (justSavedFact) {
+    systemParts.push(
+      `The user just explicitly asked you to remember something, and it has ` +
+      `been saved successfully: "${justSavedFact}". Briefly acknowledge that ` +
+      `you'll remember it as part of your response.`
+    );
+  }
 
   // Inject this user's saved memory
   const memoryFacts = await getMemory(req.username);
@@ -646,14 +753,6 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   if (systemParts.length > 0) {
     finalMessages = [{ role: 'system', content: systemParts.join('\n\n---\n\n') }, ...messages];
-  }
-
-  // ---- Background: extract & save new memory fact for this user ----
-  const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-  if (lastUserMsg && typeof lastUserMsg.content === 'string') {
-    extractMemoryFact(lastUserMsg.content).then(fact => {
-      if (fact) addMemory(req.username, fact);
-    });
   }
 
   // ---- Call with automatic fallback chain ----
