@@ -785,17 +785,35 @@ app.post('/chat', requireAuth, async (req, res) => {
     return false;
   }
   
+  // Limit search results to a small, relevant set — prevents huge raw scraped
+  // content from bloating the system prompt and wasting tokens.
+  const MAX_SEARCH_RESULTS = 3;
+  const MAX_SNIPPET_LENGTH = 300; // characters per result
+  
+  function buildSearchResultsText(results) {
+    if (!results || results.length === 0) return '';
+    
+    const trimmedResults = results.slice(0, MAX_SEARCH_RESULTS).map(function(r, i) {
+      const title = (r.title || '').trim();
+      let snippet = (r.snippet || r.content || r.description || '').trim();
+      if (snippet.length > MAX_SNIPPET_LENGTH) {
+        snippet = snippet.slice(0, MAX_SNIPPET_LENGTH) + '...';
+      }
+      return '[' + (i + 1) + '] ' + title + '\n' + snippet + '\nSource: ' + (r.link || r.url || '');
+    });
+    
+    return trimmedResults.join('\n\n');
+  }
+  
   if (webSearch && !shouldSkipSearch(lastUserMsg ? lastUserMsg.content : '')) {
     try {
       const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
       const query = lastUserMsg ? lastUserMsg.content : '';
 
       const results = await searchWeb(query);
-      sources = results.map(r => ({ title: r.title, link: r.url }));
+      sources = results.slice(0, MAX_SEARCH_RESULTS).map(r => ({ title: r.title, link: r.url }));
 
-      const context = results
-        .map((r, i) => `[${i + 1}] ${r.title}\n${r.content}\nSource: ${r.url}`)
-        .join('\n\n');
+      const context = buildSearchResultsText(results);
 
       systemParts.push(`You have access to the following up-to-date web search results. Use them to answer the user's question accurately. Cite sources using [1], [2] etc. where relevant. If not relevant, answer using your own knowledge instead.\n\nWeb Search Results:\n${context}`);
     } catch (err) {
@@ -815,14 +833,21 @@ app.post('/chat', requireAuth, async (req, res) => {
   finalMessages = [{ role: 'system', content: systemMessageContent }, ...nonSystemMessages];
 
   // ---- Call with automatic fallback chain ----
-  // DEBUG: Log full system message content and array structure
-  console.log('DEBUG - finalMessages[0] (system) FULL CONTENT:', JSON.stringify(finalMessages[0]));
+  // DEBUG: Log a short preview of the system message (not the full content)
+  function previewText(text, maxLength) {
+    if (!text) return '(empty)';
+    maxLength = maxLength || 300;
+    return text.length > maxLength ? text.slice(0, maxLength) + '... [truncated, full length: ' + text.length + ']' : text;
+  }
+  
+  console.log('DEBUG - finalMessages[0] (system) PREVIEW:', previewText(finalMessages[0] && finalMessages[0].content, 400));
   console.log('DEBUG - finalMessages array length:', finalMessages.length);
   console.log('DEBUG - finalMessages roles in order:', finalMessages.map(function(m) { return m.role; }).join(', '));
   
   // DEBUG: Second check - log system content right before the actual API call
   const systemContentBeforeCall = (finalMessages.find(function(m) { return m.role === 'system'; }) || {}).content;
-  console.log('DEBUG - System content passed to getStreamingResponse:', systemContentBeforeCall ? systemContentBeforeCall.substring(0, 500) + '...' : 'NO SYSTEM MESSAGE');
+  console.log('DEBUG - System content preview passed to getStreamingResponse:', previewText(systemContentBeforeCall, 400));
+  console.log('DEBUG - System content total length:', systemContentBeforeCall ? systemContentBeforeCall.length : 0);
   
   try {
     const { response: providerResponse } = await getStreamingResponse(
