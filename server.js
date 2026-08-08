@@ -752,19 +752,40 @@ app.post('/chat', requireAuth, async (req, res) => {
   console.log('Memory fetched for', req.username, ':', memoryFacts);
   if (memoryFacts.length > 0) {
     // Use stronger, more directive language to ensure the model actually uses the memory
+    // IMPORTANT: Warn the model that facts may be about other people/things, not necessarily the user
     systemParts.push(
       `=== IMPORTANT: SAVED USER MEMORY ===\n` +
-      `The following are facts the user has explicitly asked you to remember about them. ` +
-      `When the user asks a personal question (e.g. about their favorite person, preferences, location, job, etc.), ` +
-      `you MUST check this list FIRST and answer directly using this information if relevant — ` +
-      `do NOT say you don't know or don't have access to past conversations if the answer is here.\n` +
+      `The following are facts the user has explicitly asked you to remember. ` +
+      `These facts may be about the user themselves, OR about other people/things ` +
+      `they mentioned (e.g. a friend, a favorite player, a family member) — ` +
+      `do NOT assume a fact describes the user unless it clearly says so ` +
+      `(e.g. "my name is...", "I am...", "I live in..."). ` +
+      `In particular, NEVER address the user by a name mentioned in these facts ` +
+      `unless the fact explicitly states that is the user\'s own name.\n` +
+      `When the user asks a personal question (e.g. about their favorite person, ` +
+      `preferences, location, job, etc.), check this list first and answer directly ` +
+      `using this information if relevant — do NOT say you don\'t know if the answer is here.\n` +
       memoryFacts.map(function(f) { return '- ' + f; }).join('\n') +
       `\n=== END SAVED MEMORY ===\n\nUse this information naturally when relevant, without explicitly mentioning that it came from "memory".`
     );
   }
 
   // Web search injection
-  if (webSearch) {
+  // Skip web search for trivial/very short messages — even with the search toggle
+  // on, a message this short can't meaningfully benefit from search results, and
+  // short casual words (e.g. "okk", "hi", "thanks") can accidentally match unrelated
+  // company/product names, pulling in large irrelevant content for no benefit.
+  const CASUAL_MESSAGE_PATTERN = /^(okk?|ok|hi|hii+|hey|hello|thanks?|thank you|dhonnobad|thik ?ache?|accha?|hmm+|hm+|k+|yes|no|na|ha+)\.?!?$/i;
+  
+  function shouldSkipSearch(userMessage) {
+    if (!userMessage) return true;
+    const trimmed = userMessage.trim();
+    if (trimmed.length < 4) return true; // too short to need search
+    if (CASUAL_MESSAGE_PATTERN.test(trimmed)) return true; // matches a known casual/filler word
+    return false;
+  }
+  
+  if (webSearch && !shouldSkipSearch(lastUserMsg ? lastUserMsg.content : '')) {
     try {
       const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
       const query = lastUserMsg ? lastUserMsg.content : '';
