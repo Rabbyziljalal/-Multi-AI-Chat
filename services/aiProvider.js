@@ -1,5 +1,9 @@
 const fetch = require('node-fetch');
 
+// Persists across requests for the lifetime of this server process (in-memory).
+// Used to alternate which Gemini key is tried first on each request.
+let geminiKeyToggleCounter = 0;
+
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
 function stripDataUrlPrefix(base64) {
   if (typeof base64 !== 'string') return base64;
@@ -149,36 +153,49 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     });
   }
 
-  // 1. Always try the user's actual dropdown selection FIRST — both Gemini keys
-  //    if it's a Gemini model, before considering any fallback.
-  if (userProvider === 'gemini') {
-    pushGemini(process.env.GEMINI_API_KEY, userModel, 'User selection: Gemini (' + userModel + ') Key 1');
-    if (process.env.GEMINI_API_KEY_2) {
-      pushGemini(process.env.GEMINI_API_KEY_2, userModel, 'User selection: Gemini (' + userModel + ') Key 2');
+  // Decide this request's key order ONCE, then use it consistently for every
+  // Gemini model in the chain below. Flips every request: 1st request tries
+  // Key1->Key2, 2nd request tries Key2->Key1, 3rd back to Key1->Key2, etc.
+  const useKey1First = (geminiKeyToggleCounter % 2 === 0);
+  geminiKeyToggleCounter++;
+
+  const KEY_A = useKey1First ? process.env.GEMINI_API_KEY : process.env.GEMINI_API_KEY_2;
+  const KEY_A_LABEL = useKey1First ? 'Key 1' : 'Key 2';
+  const KEY_B = useKey1First ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
+  const KEY_B_LABEL = useKey1First ? 'Key 2' : 'Key 1';
+
+  // Helper: push both keys (in this request's decided order) for a given Gemini model.
+  function pushGeminiBothKeys(model, labelPrefix) {
+    pushGemini(KEY_A, model, labelPrefix + ' Gemini (' + model + ') ' + KEY_A_LABEL);
+    if (KEY_B) {
+      pushGemini(KEY_B, model, labelPrefix + ' Gemini (' + model + ') ' + KEY_B_LABEL);
     }
+  }
+
+  // 1. Always try the user's actual dropdown selection FIRST — both keys, in
+  //    this request's alternating order — before considering any fallback.
+  if (userProvider === 'gemini') {
+    pushGeminiBothKeys(userModel, 'User selection:');
   } else if (userProvider === 'bigmodel') {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, userModel, 'User selection: BigModel (' + userModel + ')');
   } else if (userProvider === 'groq') {
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')');
   }
 
-  // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically chose
-  //    gemini-flash-latest, since that model should fall back straight to
-  //    BigModel/Groq instead of routing through the Flash Lite models.
+  // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically
+  //    chose gemini-flash-latest (falls straight to BigModel/Groq instead).
   const userChoseFlashLatest = (userProvider === 'gemini' && userModel === 'gemini-flash-latest');
 
   if (!userChoseFlashLatest) {
     const fallbackModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
     fallbackModels.forEach(function(m) {
       if (!(userProvider === 'gemini' && userModel === m)) {
-        pushGemini(process.env.GEMINI_API_KEY, m, 'Fallback: Gemini (' + m + ') Key 1');
-      }
-      if (process.env.GEMINI_API_KEY_2) {
-        pushGemini(process.env.GEMINI_API_KEY_2, m, 'Fallback: Gemini (' + m + ') Key 2');
+        pushGeminiBothKeys(m, 'Fallback:');
       }
     });
   }
 
+  // 3. BigModel / Groq — always the final fallback for everyone.
   if (!(userProvider === 'bigmodel')) {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel');
   }

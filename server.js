@@ -272,17 +272,39 @@ Do not save temporary/one-off info (like "what's the weather today").`
 // saved from. No change needed for that part — it already works via
 // getMemory(req.username) in the /chat route.
 
+// ============================================================
+// Root cause of the bug: the previous list only covered English
+// phrasing and Bangla SCRIPT (মনে রাখো), but missed Romanized
+// Bangla / "Banglish" phrasing (e.g. "save kore rakho memory te",
+// "mone rakho"), which is how this user actually types most of the
+// time. That's why the explicit save wasn't detected.
+// ============================================================
 const EXPLICIT_MEMORY_TRIGGERS = [
+  // English
   /remember (that|this)/i,
   /save (this|that) to (your )?memory/i,
   /please remember/i,
   /keep this in mind/i,
   /don'?t forget/i,
+  // Bangla script
   /মনে রাখো/,
   /মনে রেখো/,
   /মনে রাখবে/,
   /সেভ কর/,
-  /মেমোরিতে রাখো/
+  /মেমোরিতে রাখো/,
+  // Romanized Bangla / Banglish — covers how many Bangla speakers
+  // actually type on a chat app, using English letters
+  /mone rak/i,        // covers "mone rakho", "mone rakbe", "mone rakhbo"
+  /mone rekho/i,
+  /save kore rakho/i,
+  /save kore rakh/i,
+  /memory te rakho/i,
+  /memory te rakh/i,
+  /memory te save/i,
+  /save.*memory/i,     // catches "ata save kore rakho memory te" style ordering
+  /mone thakuk/i,
+  /bhule jeo na/i,      // "don't forget" in Banglish
+  /মনে রাখিস/           // informal spelling variant (mixed script safety net)
 ];
 
 function detectExplicitMemoryRequest(text) {
