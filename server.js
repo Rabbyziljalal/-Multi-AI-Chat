@@ -751,7 +751,16 @@ app.post('/chat', requireAuth, async (req, res) => {
   const memoryFacts = await getMemory(req.username);
   console.log('Memory fetched for', req.username, ':', memoryFacts);
   if (memoryFacts.length > 0) {
-    systemParts.push(`You know the following facts about this user from previous conversations. Treat these as true and answer questions about the user directly and confidently using this information — do not say you don't know or don't have access to past conversations:\n${memoryFacts.map(f => `- ${f}`).join('\n')}`);
+    // Use stronger, more directive language to ensure the model actually uses the memory
+    systemParts.push(
+      `=== IMPORTANT: SAVED USER MEMORY ===\n` +
+      `The following are facts the user has explicitly asked you to remember about them. ` +
+      `When the user asks a personal question (e.g. about their favorite person, preferences, location, job, etc.), ` +
+      `you MUST check this list FIRST and answer directly using this information if relevant — ` +
+      `do NOT say you don't know or don't have access to past conversations if the answer is here.\n` +
+      memoryFacts.map(function(f) { return '- ' + f; }).join('\n') +
+      `\n=== END SAVED MEMORY ===\n\nUse this information naturally when relevant, without explicitly mentioning that it came from "memory".`
+    );
   }
 
   // Web search injection
@@ -779,15 +788,21 @@ app.post('/chat', requireAuth, async (req, res) => {
     ? systemParts.join('\n\n---\n\n') 
     : 'You are a helpful assistant.';
   
-  finalMessages = [{ role: 'system', content: systemMessageContent }, ...messages];
+  // Filter out any system messages from the incoming messages array to avoid duplicates
+  // (the frontend may send its own system message, but we want exactly one)
+  const nonSystemMessages = messages.filter(function(m) { return m.role !== 'system'; });
+  finalMessages = [{ role: 'system', content: systemMessageContent }, ...nonSystemMessages];
 
   // ---- Call with automatic fallback chain ----
-  // DEBUG: Verify memory injection
-  const finalSystemMsg = finalMessages[0];
-  if (finalSystemMsg && finalSystemMsg.role === 'system') {
-    const hasMemory = finalSystemMsg.content.includes('You know the following facts');
-    console.log('DEBUG - Memory injected:', hasMemory, '| Facts count:', memoryFacts.length, '| System message length:', finalSystemMsg.content.length);
-  }
+  // DEBUG: Log full system message content and array structure
+  console.log('DEBUG - finalMessages[0] (system) FULL CONTENT:', JSON.stringify(finalMessages[0]));
+  console.log('DEBUG - finalMessages array length:', finalMessages.length);
+  console.log('DEBUG - finalMessages roles in order:', finalMessages.map(function(m) { return m.role; }).join(', '));
+  
+  // DEBUG: Second check - log system content right before the actual API call
+  const systemContentBeforeCall = (finalMessages.find(function(m) { return m.role === 'system'; }) || {}).content;
+  console.log('DEBUG - System content passed to getStreamingResponse:', systemContentBeforeCall ? systemContentBeforeCall.substring(0, 500) + '...' : 'NO SYSTEM MESSAGE');
+  
   try {
     const { response: providerResponse } = await getStreamingResponse(
       provider, model, finalMessages, imageBase64, imageMimeType, pdfText
