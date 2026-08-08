@@ -773,11 +773,21 @@ app.post('/chat', requireAuth, async (req, res) => {
     }
   }
 
-  if (systemParts.length > 0) {
-    finalMessages = [{ role: 'system', content: systemParts.join('\n\n---\n\n') }, ...messages];
-  }
+  // Always create finalMessages with system message, even if systemParts is empty
+  // This ensures consistent structure and prevents missing system messages
+  const systemMessageContent = systemParts.length > 0 
+    ? systemParts.join('\n\n---\n\n') 
+    : 'You are a helpful assistant.';
+  
+  finalMessages = [{ role: 'system', content: systemMessageContent }, ...messages];
 
   // ---- Call with automatic fallback chain ----
+  // DEBUG: Verify memory injection
+  const finalSystemMsg = finalMessages[0];
+  if (finalSystemMsg && finalSystemMsg.role === 'system') {
+    const hasMemory = finalSystemMsg.content.includes('You know the following facts');
+    console.log('DEBUG - Memory injected:', hasMemory, '| Facts count:', memoryFacts.length, '| System message length:', finalSystemMsg.content.length);
+  }
   try {
     const { response: providerResponse } = await getStreamingResponse(
       provider, model, finalMessages, imageBase64, imageMimeType, pdfText
