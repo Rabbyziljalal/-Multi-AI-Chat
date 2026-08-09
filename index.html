@@ -1454,6 +1454,18 @@
             --accent: #d4af37;
         }
 
+        /* Deep Blue — the original blue/purple color scheme used before the theme switcher */
+        body[data-theme="deepblue"] {
+            --bg-main: #0a0e1a;
+            --bg-sidebar: #080b14;
+            --bg-hover: rgba(77, 157, 255, 0.08);
+            --bg-active: rgba(77, 157, 255, 0.14);
+            --text-primary: #e8ecf5;
+            --text-secondary: #8b96b0;
+            --border-subtle: rgba(77, 157, 255, 0.15);
+            --accent: #0066ff;
+        }
+
         /* Theme toggle button + dropdown */
         .theme-switcher {
             position: relative;
@@ -1511,6 +1523,9 @@
         .theme-swatch.dark-swatch { background: #1a1a1a; }
         .theme-swatch.black-swatch { background: #000000; }
         .theme-swatch.golden-swatch { background: linear-gradient(135deg, #d4af37, #14110a); }
+        .theme-swatch.deepblue-swatch {
+            background: linear-gradient(135deg, #0066ff, #4d3dff);
+        }
 
         /* -------- Pull-string lamp animation (alternate login trigger) -------- */
         .lamp-scene {
@@ -1908,6 +1923,10 @@
                     <div class="theme-option" data-theme="golden">
                         <span class="theme-swatch golden-swatch"></span>
                         Golden Mode
+                    </div>
+                    <div class="theme-option" data-theme="deepblue">
+                        <span class="theme-swatch deepblue-swatch"></span>
+                        Deep Blue
                     </div>
                 </div>
             </div>
@@ -4125,11 +4144,18 @@
                     const mainAreaSelectors = [
                         '.chat-container',
                         '#chatContainer',
-                        '.main'
+                        '.main',
+                        '.input-area'
                     ];
                     mainAreaSelectors.forEach(sel => {
                         const el = document.querySelector(sel);
-                        if (el) el.style.backgroundColor = bgMain;
+                        if (el) {
+                            el.style.backgroundColor = bgMain;
+                            // .input-area uses a gradient referencing --bg-primary
+                            // (which doesn't change with themes) — clear it so the
+                            // inline background color is actually visible.
+                            if (sel === '.input-area') el.style.backgroundImage = 'none';
+                        }
                     });
 
                     // Modals/overlays that should also follow the theme
