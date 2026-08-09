@@ -1422,6 +1422,96 @@
             border-top: 1px solid rgba(255,255,255,0.06);
         }
 
+        /* -------- Theme switcher: Black / Dark / Golden modes -------- */
+        /* Default = current "Dark Mode" (existing theme, unchanged) */
+        body[data-theme="dark"] {
+            --bg-main: #1a1a1a;
+            --bg-sidebar: #171717;
+            --accent: #cc785c;
+        }
+
+        /* Black Mode — true black, high contrast, OLED-friendly */
+        body[data-theme="black"] {
+            --bg-main: #000000;
+            --bg-sidebar: #000000;
+            --bg-hover: rgba(255,255,255,0.08);
+            --bg-active: rgba(255,255,255,0.12);
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border-subtle: rgba(255,255,255,0.1);
+            --accent: #4d9dff;
+        }
+
+        /* Golden Mode — dark background, warm gold/amber accents */
+        body[data-theme="golden"] {
+            --bg-main: #14110a;
+            --bg-sidebar: #100d08;
+            --bg-hover: rgba(212,175,55,0.08);
+            --bg-active: rgba(212,175,55,0.14);
+            --text-primary: #f5e6c8;
+            --text-secondary: #b8a67d;
+            --border-subtle: rgba(212,175,55,0.15);
+            --accent: #d4af37;
+        }
+
+        /* Theme toggle button + dropdown */
+        .theme-switcher {
+            position: relative;
+        }
+
+        .theme-toggle-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--bg-hover, rgba(255,255,255,0.06));
+            border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            color: var(--text-primary, #e8e8e6);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .theme-toggle-btn:hover { opacity: 0.85; }
+
+        .theme-dropdown {
+            position: absolute;
+            top: 44px;
+            right: 0;
+            background: var(--bg-sidebar, #171717);
+            border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+            border-radius: 10px;
+            padding: 6px;
+            min-width: 150px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 500;
+        }
+        .theme-dropdown.open { display: block; }
+
+        .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13.5px;
+            color: var(--text-secondary, #9b9b96);
+        }
+        .theme-option:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); }
+        .theme-option.active { color: var(--text-primary, #e8e8e6); font-weight: 600; }
+
+        .theme-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .theme-swatch.dark-swatch { background: #1a1a1a; }
+        .theme-swatch.black-swatch { background: #000000; }
+        .theme-swatch.golden-swatch { background: linear-gradient(135deg, #d4af37, #14110a); }
+
         /* -------- Pull-string lamp animation (alternate login trigger) -------- */
         .lamp-scene {
             position: relative;
@@ -1791,6 +1881,36 @@
                     <span id="connText">Checking...</span>
                 </div>
             </div>
+            <div class="theme-switcher">
+                <button class="theme-toggle-btn" id="themeToggleBtn" title="Change theme">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                </button>
+
+                <div class="theme-dropdown" id="themeDropdown">
+                    <div class="theme-option" data-theme="dark">
+                        <span class="theme-swatch dark-swatch"></span>
+                        Dark Mode
+                    </div>
+                    <div class="theme-option" data-theme="black">
+                        <span class="theme-swatch black-swatch"></span>
+                        Black Mode
+                    </div>
+                    <div class="theme-option" data-theme="golden">
+                        <span class="theme-swatch golden-swatch"></span>
+                        Golden Mode
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -2050,6 +2170,11 @@
                             <div class="settings-section-title">Account</div>
                             <div class="settings-section-desc" id="loggedInAs">Not logged in</div>
                             <button class="settings-danger-btn" id="logoutBtn">Log out</button>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-section-title" style="color: #e08a7d;">Danger zone</div>
+                            <div class="settings-section-desc">Permanently delete your account and all associated data. This cannot be undone.</div>
+                            <button class="settings-danger-btn" id="deleteAccountBtn">Delete account permanently</button>
                         </div>
                     </div>
 
@@ -3874,6 +3999,53 @@
                 if (clearAllChats()) closeSettings();
             });
 
+            // --- Delete account permanently (from Data tab, double-confirmation) ---
+            document.getElementById('deleteAccountBtn').addEventListener('click', async function() {
+                const emailForConfirm = localStorage.getItem('authUsername') || 'your account';
+
+                // Double confirmation since this is irreversible
+                const firstConfirm = confirm(
+                    'This will PERMANENTLY delete your account (' + emailForConfirm + '), ' +
+                    'all your chats, and all saved memory. This cannot be undone.\n\nContinue?'
+                );
+                if (!firstConfirm) return;
+
+                const typedEmail = prompt('Type your email address to confirm deletion:');
+                if (typedEmail === null) return; // cancelled
+                if (typedEmail.trim().toLowerCase() !== emailForConfirm.trim().toLowerCase()) {
+                    showToast('Email did not match — account not deleted', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(backendUrl + '/auth/account', {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Clear ALL local state for this account and return to the auth screen
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('authUsername');
+                        localStorage.removeItem('authDisplayName');
+                        chats = {};
+                        chatSummaries = [];
+                        currentChatId = null;
+
+                        closeSettings();
+                        if (typeof resetAuthForm === 'function') resetAuthForm();
+                        document.getElementById('authOverlay').style.display = 'flex';
+                        showToast('Account deleted', 'info');
+                    } else {
+                        showToast(data.error || 'Could not delete account', 'error');
+                    }
+                } catch (err) {
+                    console.error('Account deletion request failed:', err);
+                    showToast('Could not delete account — check your connection', 'error');
+                }
+            });
+
             // --- Log out (from Data tab) ---
             document.getElementById('logoutBtn').addEventListener('click', function() {
                 console.log('Logout clicked, clearing:', localStorage.getItem('authToken'));
@@ -3916,6 +4088,43 @@
             }
 
             updateLoggedInAs();
+        })();
+
+        // ============================================
+        // THEME SWITCHER (Black / Dark / Golden modes)
+        // ============================================
+        (function setupThemeSwitcher() {
+            const toggleBtn = document.getElementById('themeToggleBtn');
+            const dropdown = document.getElementById('themeDropdown');
+            const options = document.querySelectorAll('.theme-option');
+
+            function applyTheme(theme) {
+                document.body.setAttribute('data-theme', theme);
+                localStorage.setItem('appTheme', theme);
+                options.forEach(opt => opt.classList.toggle('active', opt.dataset.theme === theme));
+            }
+
+            toggleBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('open');
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', function () {
+                    applyTheme(opt.dataset.theme);
+                    dropdown.classList.remove('open');
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!dropdown.contains(e.target) && e.target !== toggleBtn) {
+                    dropdown.classList.remove('open');
+                }
+            });
+
+            // Apply saved theme on load (defaults to 'dark' — the existing look)
+            const savedTheme = localStorage.getItem('appTheme') || 'dark';
+            applyTheme(savedTheme);
         })();
 
         updateWelcomeHeading();

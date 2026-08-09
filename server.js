@@ -176,6 +176,32 @@ function requireAuth(req, res, next) {
   }
 }
 
+// ---- Permanent account deletion: removes ALL chats, memory, and the account record ----
+app.delete('/auth/account', requireAuth, async (req, res) => {
+  const email = req.username; // scoping identifier, now guaranteed to be the email
+
+  try {
+    // 1) Delete all chats and the chat-id index
+    const chatIds = await redisCommand(['SMEMBERS', userChatIdsKey(email)]);
+    if (chatIds && chatIds.length > 0) {
+      await Promise.all(chatIds.map(id => redisCommand(['DEL', chatKey(email, id)])));
+    }
+    await redisCommand(['DEL', userChatIdsKey(email)]);
+
+    // 2) Delete memory
+    await redisCommand(['DEL', `user_memory:${email}`]);
+
+    // 3) Delete the user account record itself (email/username/passwordHash)
+    await redisCommand(['DEL', `user:${email}`]);
+
+    console.log('Account permanently deleted:', email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Account deletion failed:', err.message);
+    res.status(500).json({ success: false, error: 'Failed to delete account' });
+  }
+});
+
 // ============================================
 // MEMORY SYSTEM using Upstash Redis
 // ============================================
