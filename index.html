@@ -4101,7 +4101,44 @@
             function applyTheme(theme) {
                 document.body.setAttribute('data-theme', theme);
                 localStorage.setItem('appTheme', theme);
+
+                const options = document.querySelectorAll('.theme-option');
                 options.forEach(opt => opt.classList.toggle('active', opt.dataset.theme === theme));
+
+                // Read the CSS variable values that data-theme just set, then force-apply
+                // them directly via inline style on every major layout container — this
+                // bulletproof approach works even if some element elsewhere has a
+                // hardcoded background color hex value instead of using var(--bg-main).
+                requestAnimationFrame(() => {
+                    const styles = getComputedStyle(document.body);
+                    const bgMain = styles.getPropertyValue('--bg-main').trim();
+                    const bgSidebar = styles.getPropertyValue('--bg-sidebar').trim();
+
+                    document.body.style.backgroundColor = bgMain;
+
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar) sidebar.style.backgroundColor = bgSidebar;
+
+                    // Actual background surfaces in this app's layout:
+                    // - .chat-container / #chatContainer = the main chat/messages area
+                    // - .main = the main content wrapper (flex column holding top-bar + chat)
+                    const mainAreaSelectors = [
+                        '.chat-container',
+                        '#chatContainer',
+                        '.main'
+                    ];
+                    mainAreaSelectors.forEach(sel => {
+                        const el = document.querySelector(sel);
+                        if (el) el.style.backgroundColor = bgMain;
+                    });
+
+                    // Modals/overlays that should also follow the theme
+                    const modalSelectors = ['.settings-modal', '.auth-overlay', '.auth-box'];
+                    modalSelectors.forEach(sel => {
+                        const el = document.querySelector(sel);
+                        if (el) el.style.backgroundColor = sel === '.auth-overlay' ? '' : bgSidebar; // auth-overlay keeps its own gradient background
+                    });
+                });
             }
 
             toggleBtn.addEventListener('click', function (e) {
