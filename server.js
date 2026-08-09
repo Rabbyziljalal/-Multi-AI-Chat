@@ -61,19 +61,28 @@ function stripDataUrlPrefix(base64) {
     : base64;
 }
 
-// ============================================
-// AUTH SYSTEM (username + password, no email)
-// ============================================
+// ============================================================
+// AUTH SYSTEM (username + email + password signup, email + password login)
+//
+// Key change: signup now takes THREE fields (username, email,
+// password). Email is the unique account identifier (what's stored
+// in Redis, what JWT is signed with, what all existing per-user
+// scoping — chat:<x>, user_memory:<x> — continues to use, exactly
+// as before, just now guaranteed to be a real email since it's a
+// separate validated field). Username is a separate display-name
+// field, returned to the frontend and used for the "Welcome, X"
+// heading, editable later in Settings exactly as before.
+//
+// Login now takes EMAIL + password only (no username field).
+// ============================================================
 const JWT_SECRET = process.env.JWT_SECRET; // set this in Render env vars (any long random string)
 
-// ---- User storage in Redis ----
-// Each user stored as a Redis hash: user:<username> -> { passwordHash }
-// Memory stored per-user: user_memory:<username> -> list of facts
+// ---- User storage in Redis — keyed by EMAIL (unique identifier) ----
+// user:<email> -> { username, passwordHash }
 
-async function getUser(username) {
-  const result = await redisCommand(['HGETALL', `user:${username}`]);
+async function getUser(email) {
+  const result = await redisCommand(['HGETALL', `user:${email}`]);
   if (!result || result.length === 0) return null;
-  // result comes back as a flat array [field1, value1, field2, value2, ...]
   const obj = {};
   for (let i = 0; i < result.length; i += 2) {
     obj[result[i]] = result[i + 1];
@@ -81,60 +90,75 @@ async function getUser(username) {
   return obj;
 }
 
-async function createUser(username, passwordHash) {
-  await redisCommand(['HSET', `user:${username}`, 'passwordHash', passwordHash]);
+async function createUser(email, username, passwordHash) {
+  await redisCommand(['HSET', `user:${email}`, 'username', username, 'passwordHash', passwordHash]);
 }
 
-// ---- Signup route ----
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ---- Signup route: username + email + password ----
 app.post('/auth/signup', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, email, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Username, email, and password are all required' });
   }
-  if (username.length < 3 || password.length < 6) {
-    return res.status(400).json({ error: 'Username must be 3+ chars, password 6+ chars' });
+  if (username.trim().length < 2) {
+    return res.status(400).json({ error: 'Username must be at least 2 characters' });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Please enter a valid email address' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
-  const cleanUsername = username.trim().toLowerCase();
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanUsername = username.trim();
 
-  const existing = await getUser(cleanUsername);
+  const existing = await getUser(cleanEmail);
   if (existing) {
-    return res.status(409).json({ error: 'Username already taken' });
+    return res.status(409).json({ error: 'An account with this email already exists' });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  await createUser(cleanUsername, passwordHash);
+  await createUser(cleanEmail, cleanUsername, passwordHash);
 
-  const token = jwt.sign({ username: cleanUsername }, JWT_SECRET, { expiresIn: '90d' });
-  res.json({ success: true, token, username: cleanUsername });
+  const token = jwt.sign({ email: cleanEmail }, JWT_SECRET, { expiresIn: '90d' });
+  res.json({ success: true, token, email: cleanEmail, username: cleanUsername });
 });
 
-// ---- Login route ----
+// ---- Login route: email + password only ----
 app.post('/auth/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const cleanUsername = username.trim().toLowerCase();
-  const user = await getUser(cleanUsername);
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await getUser(cleanEmail);
 
   if (!user || !user.passwordHash) {
-    return res.status(401).json({ error: 'Invalid username or password' });
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
-    return res.status(401).json({ error: 'Invalid username or password' });
+    return res.status(401).json({ error: 'Invalid email or password' });
   }
 
-  const token = jwt.sign({ username: cleanUsername }, JWT_SECRET, { expiresIn: '90d' });
-  res.json({ success: true, token, username: cleanUsername });
+  const token = jwt.sign({ email: cleanEmail }, JWT_SECRET, { expiresIn: '90d' });
+  res.json({ success: true, token, email: cleanEmail, username: user.username || cleanEmail });
 });
 
-// ---- Middleware: verify JWT on protected routes ----
+// ---- requireAuth middleware — unchanged in structure, just signs/reads `email` now ----
+// (req.username continues to be used as the scoping identifier everywhere else in
+// the app — chat storage, memory, etc. — exactly as before. We keep the variable
+// name req.username for zero disruption to all that existing code, but its value
+// is now guaranteed to be a validated email address.)
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -144,8 +168,8 @@ function requireAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('Authenticated as:', decoded.username);
-    req.username = decoded.username;
+    console.log('Authenticated as:', decoded.email);
+    req.username = decoded.email; // unchanged variable name — all existing scoping logic keeps working as-is
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired session' });

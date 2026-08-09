@@ -1944,8 +1944,11 @@
 
             <div class="auth-error" id="authError" style="display:none;"></div>
 
+            <div class="auth-input-group" id="usernameFieldGroup" style="display:none;">
+                <input type="text" class="auth-input" id="authDisplayName" placeholder="Your name" autocomplete="name">
+            </div>
             <div class="auth-input-group">
-                <input type="text" class="auth-input" id="authUsername" placeholder="Username" autocomplete="username">
+                <input type="email" class="auth-input" id="authEmail" placeholder="Email" autocomplete="email">
             </div>
             <div class="auth-input-group">
                 <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password">
@@ -3530,7 +3533,9 @@
             const overlay = document.getElementById('authOverlay');
             const title = document.getElementById('authTitle');
             const subtitle = document.getElementById('authSubtitle');
-            const usernameInput = document.getElementById('authUsername');
+            const emailInput = document.getElementById('authEmail');
+            const displayNameInput = document.getElementById('authDisplayName');
+            const usernameFieldGroup = document.getElementById('usernameFieldGroup');
             const passwordInput = document.getElementById('authPassword');
             const submitBtn = document.getElementById('authSubmitBtn');
             const errorBox = document.getElementById('authError');
@@ -3552,11 +3557,13 @@
                     title.textContent = 'Create your account';
                     subtitle.textContent = 'Sign up to start using Multi-AI';
                     submitBtn.textContent = 'Sign up';
+                    usernameFieldGroup.style.display = 'block';
                     switchText.innerHTML = 'Already have an account? <span class="auth-link" id="authSwitchLink">Log in</span>';
                 } else {
                     title.textContent = 'Welcome back';
                     subtitle.textContent = 'Log in to continue to Multi-AI';
                     submitBtn.textContent = 'Log in';
+                    usernameFieldGroup.style.display = 'none';
                     switchText.innerHTML = 'Don\'t have an account? <span class="auth-link" id="authSwitchLink">Sign up</span>';
                 }
                 // re-bind the new span since innerHTML replaced it
@@ -3566,8 +3573,10 @@
 
             function resetAuthForm() {
                 isSignupMode = false;
-                usernameInput.value = '';
+                emailInput.value = '';
                 passwordInput.value = '';
+                displayNameInput.value = '';
+                usernameFieldGroup.style.display = 'none';
                 hideError();
                 title.textContent = 'Welcome back';
                 subtitle.textContent = 'Log in to continue to Multi-AI';
@@ -3579,11 +3588,16 @@
 
             async function submitAuth() {
                 hideError();
-                const username = usernameInput.value.trim();
+                const email = emailInput.value.trim();
                 const password = passwordInput.value;
+                const displayName = displayNameInput.value.trim();
 
-                if (!username || !password) {
+                if (!email || !password) {
                     showError('Please fill in both fields');
+                    return;
+                }
+                if (isSignupMode && !displayName) {
+                    showError('Please enter your name');
                     return;
                 }
 
@@ -3592,10 +3606,14 @@
 
                 try {
                     const endpoint = isSignupMode ? '/auth/signup' : '/auth/login';
+                    const body = isSignupMode
+                        ? { username: displayName, email: email, password: password }
+                        : { email: email, password: password };
+
                     const response = await fetch(backendUrl + endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password })
+                        body: JSON.stringify(body)
                     });
 
                     const data = await response.json();
@@ -3607,9 +3625,22 @@
                         return;
                     }
 
-                    // Save auth token + username, then hide the auth screen
+                    // authUsername stays as the EMAIL — this is the unique scoping
+                    // identifier used everywhere (chat storage, memory, etc.),
+                    // unchanged from before. authDisplayName is new: the human
+                    // name shown in "Welcome, X" and Settings.
                     localStorage.setItem('authToken', data.token);
-                    localStorage.setItem('authUsername', data.username);
+                    localStorage.setItem('authUsername', data.email);
+                    localStorage.setItem('authDisplayName', data.username);
+
+                    // Initialize this account's scoped profile name the first time,
+                    // so "Welcome, X" immediately shows the name from signup —
+                    // existing Settings > Profile editing still works exactly the
+                    // same afterward (per earlier profileName_<email> scoping).
+                    if (!localStorage.getItem('profileName_' + data.email)) {
+                        localStorage.setItem('profileName_' + data.email, data.username);
+                    }
+
                     await loadChats();  // load THIS account's chat history from the server
                     renderChatList();   // display it in the sidebar
                     overlay.style.display = 'none';
