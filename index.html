@@ -2772,9 +2772,9 @@
                 }
 
                 // Fall back to the currently selected model for legacy messages that lack provider/model info
-                const parts = (document.getElementById('modelSelect').value || ':').split(':');
-                const provider = msgData.provider || (parts[0] || 'AI');
-                const model = msgData.model || (parts[1] || '');
+                const parsedModel = parseModelValue(document.getElementById('modelSelect').value);
+                const provider = msgData.provider || (parsedModel.provider || 'AI');
+                const model = msgData.model || (parsedModel.model || '');
 
                 const meta = document.createElement('div');
                 meta.className = 'message-meta';
@@ -2878,6 +2878,16 @@
             return 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
         }
 
+        // ---- Parse a model-select value like "provider:model" into { provider, model } ----
+        // IMPORTANT: splits on the FIRST colon only, so model IDs that themselves contain
+        // colons (e.g. OpenRouter's "openai/gpt-oss-20b:free") keep their full ID intact.
+        function parseModelValue(value) {
+            const str = value || '';
+            const idx = str.indexOf(':');
+            if (idx === -1) return { provider: str, model: '' };
+            return { provider: str.slice(0, idx), model: str.slice(idx + 1) };
+        }
+
         async function sendMessage(overrideText, overrideAttachment) {
             const input = document.getElementById('userInput');
             const text = (overrideText !== undefined ? overrideText : input.value).trim();
@@ -2893,10 +2903,9 @@
                 renderChatList();
             }
 
-            const modelVal = document.getElementById('modelSelect').value;
-            const parts = modelVal.split(':');
-            const provider = parts[0];
-            const model = parts[1];
+            const parsedModel = parseModelValue(document.getElementById('modelSelect').value);
+            const provider = parsedModel.provider;
+            const model = parsedModel.model;
 
             let displayContent = text || '';
             if (attachment) {
@@ -3348,10 +3357,9 @@
             // If the removed message was a user message, resend it; if assistant, resend the last user message
             const lastUser = chat.messages[chat.messages.length - 1];
             if (!lastUser || lastUser.role !== 'user') return;
-            const modelVal = document.getElementById('modelSelect').value;
-            const parts = modelVal.split(':');
-            const provider = parts[0];
-            const model = parts[1];
+            const parsedModel = parseModelValue(document.getElementById('modelSelect').value);
+            const provider = parsedModel.provider;
+            const model = parsedModel.model;
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
             document.getElementById('sendBtn').disabled = true;
@@ -3526,10 +3534,9 @@
             const lastUserMsg = chat.messages[chat.messages.length - 1];
             if (!lastUserMsg || lastUserMsg.role !== 'user') return;
 
-            const modelVal = document.getElementById('modelSelect').value;
-            const parts = modelVal.split(':');
-            const provider = parts[0];
-            const model = parts[1];
+            const parsedModel = parseModelValue(document.getElementById('modelSelect').value);
+            const provider = parsedModel.provider;
+            const model = parsedModel.model;
 
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
