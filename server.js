@@ -9,6 +9,22 @@ require('dotenv').config();
 
 const app = express();
 
+// ---- Fetch wrapper with a timeout ----
+// If a provider doesn't respond within the window (default 20s), the request is
+// aborted and throws — the caller treats that as a failure and moves on.
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || 20000);
+  try {
+    const response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+    clearTimeout(timeout);
+    return response;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
+}
+
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://rabbyziljalal.github.io';
 app.use(cors({
   origin: function(origin, callback) {
@@ -957,7 +973,7 @@ async function handleGemini(model, apiKey, messages, imageBase64, imageMimeType,
     body.systemInstruction = systemInstruction;
   }
 
-  return fetch(url, {
+  return fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -985,6 +1001,12 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
     'Authorization': `Bearer ${apiKey}`,
     'Content-Type': 'application/json'
   };
+  // OpenRouter requires HTTP-Referer and X-Title on every request, otherwise it
+  // may silently reject or hang. Other providers only need the basics.
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = process.env.APP_URL || 'https://rabbyziljalal.github.io';
+    headers['X-Title'] = 'Multi-AI Chatbot';
+  }
 
   const processedMessages = [];
 
@@ -1036,7 +1058,7 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
     }
   }
 
-  return fetch(url, {
+  return fetchWithTimeout(url, {
     method: 'POST',
     headers,
     body: JSON.stringify({

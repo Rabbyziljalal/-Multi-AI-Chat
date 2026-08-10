@@ -4,6 +4,23 @@ const fetch = require('node-fetch');
 // Used to alternate which Gemini key is tried first on each request.
 let geminiKeyToggleCounter = 0;
 
+// ---- Fetch wrapper with a timeout ----
+// If a provider doesn't respond within the window (default 20s), the request is
+// aborted and throws — the existing try/catch in getStreamingResponse treats that
+// as a failure and moves to the next attempt, instead of hanging forever.
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || 20000);
+  try {
+    const response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+    clearTimeout(timeout);
+    return response;
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err; // aborted/timed-out request throws here — handled as a failure by the caller
+  }
+}
+
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
 function stripDataUrlPrefix(base64) {
   if (typeof base64 !== 'string') return base64;
@@ -68,7 +85,7 @@ async function callGeminiRaw(apiKey, model, messages, imageBase64, imageMimeType
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model +
     ':streamGenerateContent?alt=sse&key=' + apiKey;
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -76,7 +93,7 @@ async function callGeminiRaw(apiKey, model, messages, imageBase64, imageMimeType
   return { response: response, isGemini: true };
 }
 
-async function callOpenAICompatRaw(baseUrl, apiKey, model, messages, imageBase64, imageMimeType, pdfText) {
+async function callOpenAICompatRaw(baseUrl, apiKey, model, messages, imageBase64, imageMimeType, pdfText, provider) {
   const processedMessages = [];
 
   for (let i = 0; i < messages.length; i++) {
@@ -122,12 +139,20 @@ async function callOpenAICompatRaw(baseUrl, apiKey, model, messages, imageBase64
     }
   }
 
-  const response = await fetch(baseUrl, {
+  // Build headers — OpenRouter requires HTTP-Referer and X-Title on every request,
+  // otherwise it may silently reject or hang. Other providers only need the basics.
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + apiKey
+  };
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = process.env.APP_URL || 'https://rabbyziljalal.github.io';
+    headers['X-Title'] = 'Multi-AI Chatbot';
+  }
+
+  const response = await fetchWithTimeout(baseUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey
-    },
+    headers: headers,
     body: JSON.stringify({ model: model, messages: processedMessages, stream: true, max_tokens: 4096 })
   });
   return { response: response, isGemini: false };
@@ -145,11 +170,11 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
       run: function() { return callGeminiRaw(apiKey, model, messages, imageBase64, imageMimeType, pdfText); }
     });
   }
-  function pushOpenAICompat(baseUrl, apiKey, model, label) {
+  function pushOpenAICompat(baseUrl, apiKey, model, label, provider) {
     if (!apiKey) return;
     attempts.push({
       label: label,
-      run: function() { return callOpenAICompatRaw(baseUrl, apiKey, model, messages, imageBase64, imageMimeType, pdfText); }
+      run: function() { return callOpenAICompatRaw(baseUrl, apiKey, model, messages, imageBase64, imageMimeType, pdfText, provider); }
     });
   }
 
@@ -177,13 +202,13 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
   if (userProvider === 'gemini') {
     pushGeminiBothKeys(userModel, 'User selection:');
   } else if (userProvider === 'bigmodel') {
-    pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, userModel, 'User selection: BigModel (' + userModel + ')');
+    pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, userModel, 'User selection: BigModel (' + userModel + ')', 'bigmodel');
   } else if (userProvider === 'groq') {
-    pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')');
+    pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')', 'groq');
   } else if (userProvider === 'openrouter') {
-    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, userModel, 'User selection: OpenRouter (' + userModel + ')');
+    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, userModel, 'User selection: OpenRouter (' + userModel + ')', 'openrouter');
   } else if (userProvider === 'cerebras') {
-    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, userModel, 'User selection: Cerebras (' + userModel + ')');
+    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, userModel, 'User selection: Cerebras (' + userModel + ')', 'cerebras');
   }
 
   // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically
@@ -201,16 +226,16 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
 
   // 3. BigModel / Groq / Cerebras / OpenRouter — always the final fallback for everyone.
   if (!(userProvider === 'bigmodel')) {
-    pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel');
+    pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel', 'bigmodel');
   }
   if (!(userProvider === 'groq')) {
-    pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, 'llama-3.3-70b-versatile', 'Fallback: Groq');
+    pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, 'llama-3.3-70b-versatile', 'Fallback: Groq', 'groq');
   }
   if (!(userProvider === 'cerebras')) {
-    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama3.1-8b', 'Fallback: Cerebras');
+    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama3.1-8b', 'Fallback: Cerebras', 'cerebras');
   }
   if (!(userProvider === 'openrouter')) {
-    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter');
+    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter', 'openrouter');
   }
 
   return attempts;
