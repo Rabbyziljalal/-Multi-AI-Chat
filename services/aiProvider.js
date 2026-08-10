@@ -207,7 +207,7 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, 'llama-3.3-70b-versatile', 'Fallback: Groq');
   }
   if (!(userProvider === 'cerebras')) {
-    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama-3.3-70b', 'Fallback: Cerebras');
+    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama3.1-8b', 'Fallback: Cerebras');
   }
   if (!(userProvider === 'openrouter')) {
     pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter');

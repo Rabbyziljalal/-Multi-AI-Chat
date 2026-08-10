@@ -692,7 +692,7 @@ const FALLBACK_MODEL_MAP = {
   groq: 'llama-3.3-70b-versatile',
   bigmodel: 'glm-4-flash',
   openrouter: 'openai/gpt-oss-20b:free',  // NEW
-  cerebras: 'llama-3.3-70b',               // NEW
+  cerebras: 'llama3.1-8b',                 // NEW
 };
 
 const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel', 'cerebras', 'openrouter'];
