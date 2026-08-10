@@ -48,6 +48,8 @@ const API_KEYS = {
   bigmodel: process.env.BIGMODEL_API_KEY,
   deepseek: process.env.DEEPSEEK_API_KEY,
   groq: process.env.GROQ_API_KEY,
+  openrouter: process.env.OPENROUTER_API_KEY,   // NEW
+  cerebras: process.env.CEREBRAS_API_KEY,        // NEW
 };
 
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
@@ -689,9 +691,11 @@ const FALLBACK_MODEL_MAP = {
   gemini: 'gemini-flash-latest',
   groq: 'llama-3.3-70b-versatile',
   bigmodel: 'glm-4-flash',
+  openrouter: 'openai/gpt-oss-20b:free',  // NEW
+  cerebras: 'llama-3.3-70b',               // NEW
 };
 
-const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel'];
+const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel', 'cerebras', 'openrouter'];
 
 function isRetryableError(status) {
   return status === 429 || status === 404 || status === 503;
@@ -971,6 +975,10 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
     url = 'https://api.deepseek.com/chat/completions';
   } else if (provider === 'groq') {
     url = 'https://api.groq.com/openai/v1/chat/completions';
+  } else if (provider === 'openrouter') {
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+  } else if (provider === 'cerebras') {
+    url = 'https://api.cerebras.ai/v1/chat/completions';
   }
 
   const headers = {

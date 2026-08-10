@@ -180,6 +180,10 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, userModel, 'User selection: BigModel (' + userModel + ')');
   } else if (userProvider === 'groq') {
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')');
+  } else if (userProvider === 'openrouter') {
+    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, userModel, 'User selection: OpenRouter (' + userModel + ')');
+  } else if (userProvider === 'cerebras') {
+    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, userModel, 'User selection: Cerebras (' + userModel + ')');
   }
 
   // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically
@@ -195,12 +199,18 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     });
   }
 
-  // 3. BigModel / Groq — always the final fallback for everyone.
+  // 3. BigModel / Groq / Cerebras / OpenRouter — always the final fallback for everyone.
   if (!(userProvider === 'bigmodel')) {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel');
   }
   if (!(userProvider === 'groq')) {
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, 'llama-3.3-70b-versatile', 'Fallback: Groq');
+  }
+  if (!(userProvider === 'cerebras')) {
+    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama-3.3-70b', 'Fallback: Cerebras');
+  }
+  if (!(userProvider === 'openrouter')) {
+    pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter');
   }
 
   return attempts;
