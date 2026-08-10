@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { PassThrough } = require('stream');
 
 // Persists across requests for the lifetime of this server process (in-memory).
 // Used to alternate which Gemini key is tried first on each request.
@@ -19,6 +20,68 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     clearTimeout(timeout);
     throw err; // aborted/timed-out request throws here — handled as a failure by the caller
   }
+}
+
+// ---- Verify the response BODY actually starts flowing before committing to it ----
+// The earlier timeout only covered the connection/headers phase. After response.ok
+// is confirmed, the body can still stall indefinitely with zero data. This helper
+// waits up to `timeoutMs` (default 10s) for the FIRST real chunk to arrive. If it
+// arrives, we return a PassThrough stream that replays that first chunk followed
+// by the rest — so nothing is lost. If it times out, we throw — the caller treats
+// it as a failed attempt and moves to the next fallback BEFORE any headers have
+// been sent to the actual frontend client.
+async function waitForFirstChunk(response, timeoutMs) {
+  return new Promise(function(resolve, reject) {
+    const source = response.body; // node-fetch v2: a Node.js Readable stream
+    const pass = new PassThrough();
+
+    let settled = false;
+    const timeout = setTimeout(function() {
+      if (settled) return;
+      settled = true;
+      reject(new Error('No response data received within ' + timeoutMs + 'ms'));
+    }, timeoutMs || 10000);
+
+    // Pause the source so we can safely read the first chunk without losing data
+    source.pause();
+
+    function onError(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      reject(err);
+    }
+
+    function onEnd() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      pass.end();
+      resolve(pass);
+    }
+
+    function onReadable() {
+      if (settled) return;
+      // Read the first chunk (returns null if not ready yet)
+      const firstChunk = source.read();
+      if (firstChunk === null) return;
+
+      settled = true;
+      clearTimeout(timeout);
+      source.removeListener('readable', onReadable);
+      source.removeListener('end', onEnd);
+      source.removeListener('error', onError);
+
+      // Replay the consumed first chunk, then pipe the rest of the original stream
+      pass.write(firstChunk);
+      source.pipe(pass);
+      resolve(pass);
+    }
+
+    source.once('readable', onReadable);
+    source.once('end', onEnd);
+    source.once('error', onError);
+  });
 }
 
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
@@ -207,8 +270,6 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')', 'groq');
   } else if (userProvider === 'openrouter') {
     pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, userModel, 'User selection: OpenRouter (' + userModel + ')', 'openrouter');
-  } else if (userProvider === 'cerebras') {
-    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, userModel, 'User selection: Cerebras (' + userModel + ')', 'cerebras');
   }
 
   // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically
@@ -224,15 +285,12 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     });
   }
 
-  // 3. BigModel / Groq / Cerebras / OpenRouter — always the final fallback for everyone.
+  // 3. BigModel / Groq / OpenRouter — always the final fallback for everyone.
   if (!(userProvider === 'bigmodel')) {
     pushOpenAICompat('https://open.bigmodel.cn/api/paas/v4/chat/completions', process.env.BIGMODEL_API_KEY, 'glm-4-flash', 'Fallback: BigModel', 'bigmodel');
   }
   if (!(userProvider === 'groq')) {
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, 'llama-3.3-70b-versatile', 'Fallback: Groq', 'groq');
-  }
-  if (!(userProvider === 'cerebras')) {
-    pushOpenAICompat('https://api.cerebras.ai/v1/chat/completions', process.env.CEREBRAS_API_KEY, 'llama3.1-8b', 'Fallback: Cerebras', 'cerebras');
   }
   if (!(userProvider === 'openrouter')) {
     pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter', 'openrouter');
@@ -250,13 +308,24 @@ async function getStreamingResponse(userProvider, userModel, messages, imageBase
     try {
       const result = await attempt.run();
       if (result.response.ok) {
+        // NEW: confirm real data actually starts flowing before committing to this attempt.
+        // The connection/headers phase succeeding (response.ok) doesn't guarantee the body
+        // will stream — it can stall indefinitely with zero data. waitForFirstChunk waits
+        // up to 10s for the first real chunk; if it arrives, we return a verified stream.
+        // If it times out, it throws — treated as a failure, so the fallback chain moves
+        // to the next provider BEFORE any headers are sent to the actual frontend client.
+        const verifiedStream = await waitForFirstChunk(result.response, 10000);
         console.log('Serving response via: ' + attempt.label);
-        return result; // { response, isGemini } — caller pipes result.response.body to the client
+        return {
+          response: { body: verifiedStream, headers: result.response.headers },
+          isGemini: result.isGemini,
+          servedBy: attempt.label
+        };
       }
       console.warn(attempt.label + ' failed with status ' + result.response.status);
       lastError = new Error(attempt.label + ' returned ' + result.response.status);
     } catch (err) {
-      console.warn(attempt.label + ' threw: ' + err.message);
+      console.warn(attempt.label + ' threw/timed out: ' + err.message);
       lastError = err;
     }
   }

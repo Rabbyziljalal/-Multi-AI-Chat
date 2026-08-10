@@ -1897,9 +1897,6 @@
                             <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">NVIDIA Nemotron 3 Super 120B</option>
                             <option value="openrouter:nvidia/nemotron-nano-12b-v2-vl:free">NVIDIA Nemotron Nano 12B VL</option>
                         </optgroup>
-                        <optgroup label="Cerebras (free, ultra-fast)">
-                            <option value="cerebras:llama3.1-8b">Llama 3.1 8B (Cerebras)</option>
-                        </optgroup>
                     </select>
                 </div>
                 <div class="connection-status connecting" id="connStatus">
@@ -3571,7 +3568,7 @@
         function populateProviders() {
             const list = document.getElementById('providerList');
             if (!list || list.children.length > 0) return;
-            ['OpenAI', 'Google', 'DeepSeek', 'Groq', 'BigModel', 'OpenRouter', 'Cerebras'].forEach(function(p) {
+            ['OpenAI', 'Google', 'DeepSeek', 'Groq', 'BigModel', 'OpenRouter'].forEach(function(p) {
                 const chip = document.createElement('span');
                 chip.className = 'settings-provider-chip';
                 chip.textContent = p;
