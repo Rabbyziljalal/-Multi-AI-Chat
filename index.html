@@ -941,6 +941,19 @@
         }
         .send-btn:active { transform: scale(0.95); }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .send-btn.stop-state {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-strong);
+        }
+        .send-btn.stop-state:hover {
+            background: var(--bg-hover);
+        }
+        .send-btn .stop-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            background: currentColor;
+        }
         .input-hint {
             text-align: center;
             margin-top: 10px;
@@ -2023,11 +2036,12 @@
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI..." rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
-                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
+                            <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                             </svg>
+                            <span id="stopIcon" class="stop-icon" style="display:none;"></span>
                         </button>
                     </div>
                 </div>
@@ -2233,6 +2247,7 @@
         let defaultModel = localStorage.getItem('defaultModel') || 'openai:gpt-4o-mini';
         let webSearchDefault = localStorage.getItem('webSearchDefault') === 'true';
         let isGenerating = false;
+        let currentAbortController = null;
         let currentAttachment = null;
         let isSearchEnabled = webSearchDefault;
 
@@ -2950,7 +2965,8 @@
 
             const botMsg = appendMessage('bot', '', null);
             isGenerating = true;
-            document.getElementById('sendBtn').disabled = true;
+            currentAbortController = new AbortController();
+            setSendButtonToStopState();
             setRegenerateButtonsDisabled(true);
 
             const typing = document.createElement('div');
@@ -2961,11 +2977,17 @@
             try {
                 await streamFromBackend(provider, model, text, botMsg, attachment);
             } catch (err) {
-                botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
-                showToast('Error: ' + err.message, 'error');
+                if (err.name === 'AbortError') {
+                    // User clicked stop — not a real error, just leave whatever text streamed in so far
+                    console.log('Generation stopped by user');
+                } else {
+                    botMsg.querySelector('.message-content').innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                    showToast('Error: ' + err.message, 'error');
+                }
             } finally {
                 isGenerating = false;
-                document.getElementById('sendBtn').disabled = false;
+                currentAbortController = null;
+                setSendButtonToSendState();
                 setRegenerateButtonsDisabled(false);
                 removeAttachment();
             }
@@ -3092,7 +3114,8 @@
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + (localStorage.getItem('authToken') || '')
                 },
-                body: JSON.stringify(body)
+                body: JSON.stringify(body),
+                signal: currentAbortController ? currentAbortController.signal : undefined
             });
 
             if (!response.ok) {
@@ -3137,46 +3160,54 @@
             const contentDiv = botMsg.querySelector('.message-content');
             contentDiv.innerHTML = '';
 
-            while (true) {
-                const result = await reader.read();
-                if (result.done) break;
+            try {
+                while (true) {
+                    const result = await reader.read();
+                    if (result.done) break;
 
-                buffer += decoder.decode(result.value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop();
+                    buffer += decoder.decode(result.value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
 
-                for (const line of lines) {
-                    if (!line.trim() || !line.startsWith('data:')) continue;
-                    const data = line.replace('data: ', '');
-                    if (data === '[DONE]') continue;
-                    try {
-                        const json = JSON.parse(data);
-                        let chunk = '';
-                        if (json.candidates) {
-                            // Gemini-style chunk: data.candidates[0].content.parts[].text
-                            const parts = json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts;
-                            if (parts && parts.length > 0) {
-                                for (const part of parts) {
-                                    // Skip parts without a 'text' key (some parts only contain 'thoughtSignature')
-                                    if (part && part.text) {
-                                        chunk += part.text;
+                    for (const line of lines) {
+                        if (!line.trim() || !line.startsWith('data:')) continue;
+                        const data = line.replace('data: ', '');
+                        if (data === '[DONE]') continue;
+                        try {
+                            const json = JSON.parse(data);
+                            let chunk = '';
+                            if (json.candidates) {
+                                // Gemini-style chunk: data.candidates[0].content.parts[].text
+                                const parts = json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts;
+                                if (parts && parts.length > 0) {
+                                    for (const part of parts) {
+                                        // Skip parts without a 'text' key (some parts only contain 'thoughtSignature')
+                                        if (part && part.text) {
+                                            chunk += part.text;
+                                        }
                                     }
                                 }
+                            } else {
+                                // OpenAI-style chunk: data.choices[0].delta.content
+                                chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
                             }
-                        } else {
-                            // OpenAI-style chunk: data.choices[0].delta.content
-                            chunk = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content || '';
-                        }
-                        if (chunk) {
-                            // Write chunks into the assistant message object in chat.messages,
-                            // not just a disconnected local variable. This keeps the stored
-                            // conversation history in sync with what's being streamed.
-                            assistantMsg.content += chunk;
-                            contentDiv.innerHTML = formatContent(assistantMsg.content);
-                            scrollToBottom();
-                        }
-                    } catch {}
+                            if (chunk) {
+                                // Write chunks into the assistant message object in chat.messages,
+                                // not just a disconnected local variable. This keeps the stored
+                                // conversation history in sync with what's being streamed.
+                                assistantMsg.content += chunk;
+                                contentDiv.innerHTML = formatContent(assistantMsg.content);
+                                scrollToBottom();
+                            }
+                        } catch {}
+                    }
                 }
+            } finally {
+                // Runs whether the stream finished normally OR was aborted — saves
+                // whatever text had streamed in so far, so nothing is lost on stop.
+                // (assistantMsg was already pushed into chat.messages before the loop,
+                // so we just persist its current content here.)
+                saveChats();
             }
 
             // (existing streaming while-loop ends here)
@@ -3202,6 +3233,42 @@
             botMsg.querySelector('.message-content-wrapper').appendChild(meta);
             botMsg.dataset.msgId = assistantMsg.msgId;
             botMsg.dataset.fullText = assistantMsg.content; // stored for Read Aloud without re-parsing HTML
+        }
+
+        // ---- Send button state helpers: swap between paper-plane (send) and square (stop) ----
+        function setSendButtonToStopState() {
+            const btn = document.getElementById('sendBtn');
+            const sendIcon = document.getElementById('sendIcon');
+            const stopIcon = document.getElementById('stopIcon');
+            btn.classList.add('stop-state');
+            btn.title = 'Stop generating';
+            sendIcon.style.display = 'none';
+            stopIcon.style.display = 'inline-block';
+            btn.disabled = false;
+        }
+
+        function setSendButtonToSendState() {
+            const btn = document.getElementById('sendBtn');
+            const sendIcon = document.getElementById('sendIcon');
+            const stopIcon = document.getElementById('stopIcon');
+            btn.classList.remove('stop-state');
+            btn.title = 'Send message';
+            sendIcon.style.display = 'inline-block';
+            stopIcon.style.display = 'none';
+            btn.disabled = false;
+        }
+
+        // Single handler for the button — behavior depends on current state
+        function handleSendButtonClick() {
+            if (isGenerating) {
+                // Currently generating — this click means STOP
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+            } else {
+                // Not generating — this click means SEND
+                sendMessage();
+            }
         }
 
         // ---- SVG icons (Lucide/feather style) for message action buttons ----
