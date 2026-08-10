@@ -11,7 +11,7 @@ let geminiKeyToggleCounter = 0;
 // as a failure and moves to the next attempt, instead of hanging forever.
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
-  const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || 8000);
+  const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || 20000);
   try {
     const response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
     clearTimeout(timeout);
@@ -40,7 +40,7 @@ async function waitForFirstChunk(response, timeoutMs) {
       if (settled) return;
       settled = true;
       reject(new Error('No response data received within ' + timeoutMs + 'ms'));
-    }, timeoutMs || 6000);
+    }, timeoutMs || 10000);
 
     // Pause the source so we can safely read the first chunk without losing data
     source.pause();
@@ -305,31 +305,27 @@ async function getStreamingResponse(userProvider, userModel, messages, imageBase
   let lastError = null;
 
   for (const attempt of attempts) {
-    const attemptStart = Date.now();
     try {
       const result = await attempt.run();
       if (result.response.ok) {
-        // Confirm real data actually starts flowing before committing to this attempt.
+        // NEW: confirm real data actually starts flowing before committing to this attempt.
         // The connection/headers phase succeeding (response.ok) doesn't guarantee the body
         // will stream — it can stall indefinitely with zero data. waitForFirstChunk waits
-        // up to 6s for the first real chunk; if it arrives, we return a verified stream.
+        // up to 10s for the first real chunk; if it arrives, we return a verified stream.
         // If it times out, it throws — treated as a failure, so the fallback chain moves
         // to the next provider BEFORE any headers are sent to the actual frontend client.
-        const verifiedStream = await waitForFirstChunk(result.response, 6000);
-        const elapsed = Date.now() - attemptStart;
-        console.log('Serving response via: ' + attempt.label + ' (took ' + elapsed + 'ms)');
+        const verifiedStream = await waitForFirstChunk(result.response, 10000);
+        console.log('Serving response via: ' + attempt.label);
         return {
           response: { body: verifiedStream, headers: result.response.headers },
           isGemini: result.isGemini,
           servedBy: attempt.label
         };
       }
-      const elapsed = Date.now() - attemptStart;
-      console.warn(attempt.label + ' failed with status ' + result.response.status + ' (took ' + elapsed + 'ms)');
+      console.warn(attempt.label + ' failed with status ' + result.response.status);
       lastError = new Error(attempt.label + ' returned ' + result.response.status);
     } catch (err) {
-      const elapsed = Date.now() - attemptStart;
-      console.warn(attempt.label + ' threw/timed out: ' + err.message + ' (took ' + elapsed + 'ms)');
+      console.warn(attempt.label + ' threw/timed out: ' + err.message);
       lastError = err;
     }
   }
