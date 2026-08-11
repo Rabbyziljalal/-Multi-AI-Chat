@@ -973,7 +973,7 @@ app.post('/api/generate-image', async (req, res) => {
 // These terms noticeably improve the output of Pollinations' diffusion models without
 // making prompts overly long or repetitive (we skip them if the prompt already contains
 // similar quality language).
-const QUALITY_BOOST_KEYWORDS = ', highly detailed, sharp focus, professional photography, 8k, high resolution, perfect anatomy, correct proportions, detailed hands, detailed fingers';
+const QUALITY_BOOST_KEYWORDS = ', highly detailed, sharp focus, professional photography, 8k, high resolution, perfect anatomy, correct proportions, detailed hands, detailed fingers, subject in sharp focus, crisp facial details, tack sharp, high clarity, in-focus subject';
 
 const QUALITY_TERMS = [
   'highly detailed', 'detailed',
@@ -1014,7 +1014,13 @@ async function enhanceImagePrompt(userPrompt) {
                               'English prompt suitable for an AI image generator. Include relevant details like ' +
                               'composition, lighting, mood, and art style/photography style if not already specified, ' +
                               'while staying faithful to what the user actually asked for — do not change the subject ' +
-                              'or add unrelated elements. Output ONLY the final prompt text, nothing else — ' +
+                              'or add unrelated elements. IMPORTANT RULES: ' +
+                              'The SUBJECT must always be in sharp focus with crisp, detailed features — never soft, dreamy, or hazy. ' +
+                              'Any bokeh, dreamy, soft-focus, or soft-light effects MUST be explicitly scoped to the BACKGROUND ONLY ' +
+                              '(e.g. "background softly blurred with bokeh", "golden hour lighting on the background") ' +
+                              'so they do not soften the subject itself. ' +
+                              'Do not use vague unscoped words like "soft" or "dreamy" to describe the whole image. ' +
+                              'Output ONLY the final prompt text, nothing else — ' +
                               'no quotes, no explanation, no labels.\n\n' +
                               'User request: ' + userPrompt
                     }]
