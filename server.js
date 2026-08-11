@@ -4,6 +4,7 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const FormData = require('form-data');
 const { getStreamingResponse } = require('./services/aiProvider');
 require('dotenv').config();
 
@@ -960,6 +961,95 @@ app.post('/api/generate-image', async (req, res) => {
         return res.status(500).json({
             success: false,
             error: 'Image generation failed',
+            details: error.message
+        });
+    }
+});
+
+// ============================================
+// AI IMAGE EDITING via Pollinations.ai kontext model (image-to-image)
+// ============================================
+// Pollinations' "kontext" model supports image-to-image editing. No API key or
+// billing is required for basic usage — though free/anonymous requests may include
+// a watermark and have lower rate limits than authenticated usage.
+//
+// We use the OpenAI-compatible endpoint (https://gen.pollinations.ai/v1/images/edits)
+// which accepts the image as a multipart file upload directly ("image=@file"),
+// rather than the URL-based endpoint that requires a publicly accessible image URL.
+app.post('/api/edit-image', async (req, res) => {
+    const { image, mimeType, prompt } = req.body;
+
+    // Validate inputs
+    if (!prompt || !prompt.trim()) {
+        return res.status(400).json({
+            success: false,
+            error: 'Prompt is required'
+        });
+    }
+
+    if (!image) {
+        return res.status(400).json({
+            success: false,
+            error: 'Image is required'
+        });
+    }
+
+    try {
+        console.log(`🎨 Editing image with prompt: ${prompt}`);
+
+        // Strip any "data:image/...;base64," prefix if present (defensive)
+        const commaIndex = image.indexOf(',');
+        const cleanBase64 = image.startsWith('data:') && commaIndex !== -1
+            ? image.slice(commaIndex + 1)
+            : image;
+
+        // Convert base64 to a Buffer for the multipart upload
+        const imageBuffer = Buffer.from(cleanBase64, 'base64');
+        const detectedMimeType = mimeType || 'image/jpeg';
+        const fileExt = detectedMimeType.indexOf('png') !== -1 ? 'png' : 'jpg';
+
+        // Build the multipart form body
+        const form = new FormData();
+        form.append('image', imageBuffer, {
+            filename: 'input.' + fileExt,
+            contentType: detectedMimeType
+        });
+        form.append('prompt', prompt.trim());
+        form.append('model', 'kontext');
+
+        // Send to Pollinations' OpenAI-compatible image-edits endpoint.
+        // Accepts the uploaded file directly via multipart — no public URL needed.
+        const response = await axios.post(
+            'https://gen.pollinations.ai/v1/images/edits',
+            form,
+            {
+                headers: form.getHeaders(),
+                responseType: 'arraybuffer',
+                timeout: 120000
+            }
+        );
+
+        // Convert edited image to Base64
+        const base64Image = Buffer
+            .from(response.data, 'binary')
+            .toString('base64');
+
+        const resultMimeType = 'image/png';
+
+        console.log('✅ Image edited successfully');
+
+        return res.json({
+            success: true,
+            prompt: prompt.trim(),
+            image: `data:${resultMimeType};base64,${base64Image}`
+        });
+
+    } catch (error) {
+        console.error('❌ Image edit error:', error.message);
+
+        return res.status(500).json({
+            success: false,
+            error: 'Image editing failed',
             details: error.message
         });
     }

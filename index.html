@@ -3114,11 +3114,20 @@
                 return;
             }
 
+            // Determine mode:
+            // - If an image is attached -> image EDITING via /api/edit-image
+            // - Otherwise -> image GENERATION via /api/generate-image
+            const hasAttachedImage = currentAttachment && currentAttachment.type === 'image';
+            const isEditMode = hasAttachedImage;
+
             btn.classList.add('generating');
             btn.disabled = true;
 
-            // Add user's image-generation request to chat
-            appendMessage('user', '🎨 Generate: ' + escapeHtml(prompt), null);
+            // Add user's request to chat
+            const userLabel = isEditMode
+                ? '🎨 Edit Image: ' + escapeHtml(prompt)
+                : '🎨 Generate: ' + escapeHtml(prompt);
+            appendMessage('user', userLabel, null);
 
             input.value = '';
             input.style.height = 'auto';
@@ -3130,7 +3139,7 @@
                 <div class="message-avatar">🤖</div>
                 <div class="message-content-wrapper">
                     <div class="message-content">
-                        🎨 Generating image...
+                        ${isEditMode ? '🖌️ Editing image...' : '🎨 Generating image...'}
                         <br>
                         <small style="color: var(--text-muted);">Please wait 15-30 seconds.</small>
                     </div>
@@ -3140,10 +3149,20 @@
             scrollToBottom();
 
             try {
-                const response = await fetch(backendUrl + '/api/generate-image', {
+                const endpoint = isEditMode ? '/api/edit-image' : '/api/generate-image';
+
+                const bodyPayload = isEditMode
+                    ? {
+                        prompt: prompt,
+                        image: currentAttachment.data,      // clean base64 (no data: prefix)
+                        mimeType: currentAttachment.mimeType
+                    }
+                    : { prompt: prompt };
+
+                const response = await fetch(backendUrl + endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify(bodyPayload)
                 });
 
                 let data;
