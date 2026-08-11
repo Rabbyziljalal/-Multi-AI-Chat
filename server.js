@@ -969,6 +969,29 @@ app.post('/api/generate-image', async (req, res) => {
 // IMAGE GENERATION (free, via Pollinations.ai — no API key, no limits)
 // ============================================
 
+// ---- Quality-boost keywords: appended to enhanced prompts if not already present ----
+// These terms noticeably improve the output of Pollinations' diffusion models without
+// making prompts overly long or repetitive (we skip them if the prompt already contains
+// similar quality language).
+const QUALITY_BOOST_KEYWORDS = ', highly detailed, sharp focus, professional photography, 8k, high resolution';
+
+const QUALITY_TERMS = [
+  'highly detailed', 'detailed',
+  'sharp focus', 'sharp',
+  'professional photography', 'professional',
+  '8k', '4k',
+  'high resolution', 'hi-res', 'hires',
+  'ultra hd', 'uhd',
+  'high quality', 'photorealistic', 'hyperrealistic'
+];
+
+function appendQualityBoost(prompt) {
+  const lowered = String(prompt).toLowerCase();
+  const alreadyHasQuality = QUALITY_TERMS.some(function(term) { return lowered.indexOf(term) !== -1; });
+  if (alreadyHasQuality) return prompt;
+  return prompt + QUALITY_BOOST_KEYWORDS;
+}
+
 // ---- Enhance (and translate if needed) prompts before sending to Pollinations ----
 // Pollinations.ai's underlying image model produces much better results when given
 // a vivid, detailed, well-structured English prompt. This helper uses the existing
@@ -1001,7 +1024,7 @@ async function enhanceImagePrompt(userPrompt) {
 
         if (!response.ok) {
             console.warn('Prompt enhancement failed with status ' + response.status + ', using original prompt');
-            return userPrompt;
+            return appendQualityBoost(userPrompt);
         }
 
         const data = await response.json();
@@ -1012,10 +1035,10 @@ async function enhanceImagePrompt(userPrompt) {
             data.candidates[0].content.parts[0] &&
             data.candidates[0].content.parts[0].text;
 
-        return enhanced ? enhanced.trim() : userPrompt;
+        return enhanced ? appendQualityBoost(enhanced.trim()) : appendQualityBoost(userPrompt);
     } catch (err) {
         console.warn('Prompt enhancement error, using original prompt:', err.message);
-        return userPrompt; // never let enhancement failure block image generation
+        return appendQualityBoost(userPrompt); // never let enhancement failure block image generation
     }
 }
 
@@ -1024,8 +1047,9 @@ async function generateImageWithPollinations(prompt) {
   const seed = Math.floor(Math.random() * 1000000); // random seed so the same prompt doesn't return an identical cached image every time
   const imageUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt +
     '?seed=' + seed +
-    '&model=flux' +           // NEW: much higher quality than the default model
-    '&width=1024&height=1024' + // NEW: solid resolution instead of relying on defaults
+    '&model=flux' +             // much higher quality than the default model
+    '&width=1536&height=1536' + // high resolution output
+    '&enhance=true' +           // enable Pollinations built-in image enhancement
     '&nologo=true';
 
   const response = await fetch(imageUrl);
