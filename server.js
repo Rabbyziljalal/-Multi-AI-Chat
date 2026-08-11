@@ -973,7 +973,7 @@ app.post('/api/generate-image', async (req, res) => {
 // These terms noticeably improve the output of Pollinations' diffusion models without
 // making prompts overly long or repetitive (we skip them if the prompt already contains
 // similar quality language).
-const QUALITY_BOOST_KEYWORDS = ', highly detailed, sharp focus, professional photography, 8k, high resolution';
+const QUALITY_BOOST_KEYWORDS = ', highly detailed, sharp focus, professional photography, 8k, high resolution, perfect anatomy, correct proportions, detailed hands, detailed fingers';
 
 const QUALITY_TERMS = [
   'highly detailed', 'detailed',
@@ -1050,6 +1050,7 @@ async function generateImageWithPollinations(prompt) {
     '&model=flux' +             // much higher quality than the default model
     '&width=1536&height=1536' + // high resolution output
     '&enhance=true' +           // enable Pollinations built-in image enhancement
+    '&negative=' + encodeURIComponent('deformed hands, extra fingers, missing fingers, fused fingers, malformed limbs, bad anatomy, blurry, disfigured, mutated, extra limbs') +
     '&nologo=true';
 
   const response = await fetch(imageUrl);
