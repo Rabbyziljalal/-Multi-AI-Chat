@@ -971,6 +971,50 @@
             border-radius: 2px;
             background: currentColor;
         }
+        /* ============================================
+           AI IMAGE GENERATION BUTTON
+           ============================================ */
+        .img-gen-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #ec4899);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        .img-gen-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+        }
+        .img-gen-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .img-gen-btn.generating {
+            animation: imageGenSpin 1s linear infinite;
+            opacity: 0.7;
+        }
+        @keyframes imageGenSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        /* Generated image inside chat */
+        .generated-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin-top: 10px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
         .input-hint {
             text-align: center;
             margin-top: 10px;
@@ -2053,6 +2097,15 @@
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI... (try /imagine a sunset)" rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
+                        <button
+                            class="img-gen-btn"
+                            id="imgGenBtn"
+                            onclick="generateImage()"
+                            title="Generate Image"
+                            aria-label="Generate Image"
+                        >
+                            🎨
+                        </button>
                         <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
                             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -3032,6 +3085,122 @@
                 setSendButtonToSendState();
                 setRegenerateButtonsDisabled(false);
                 removeAttachment();
+            }
+        }
+
+        // ============================================
+        // AI IMAGE GENERATION via Hugging Face FLUX.1-dev
+        // ============================================
+        async function generateImage() {
+            const input = document.getElementById('userInput');
+            const btn = document.getElementById('imgGenBtn');
+            const messagesContainer = document.getElementById('messages');
+
+            if (!input || !btn || !messagesContainer) {
+                console.error('Image generation UI elements not found');
+                return;
+            }
+
+            const prompt = input.value.trim();
+
+            // Validate prompt
+            if (!prompt) {
+                showToast('❌ Describe what image you want first!', 'error');
+                return;
+            }
+
+            // Prevent multiple requests
+            if (btn.disabled) {
+                return;
+            }
+
+            btn.classList.add('generating');
+            btn.disabled = true;
+
+            // Add user's image-generation request to chat
+            appendMessage('user', '🎨 Generate: ' + escapeHtml(prompt), null);
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot';
+            loadingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content-wrapper">
+                    <div class="message-content">
+                        🎨 Generating image...
+                        <br>
+                        <small style="color: var(--text-muted);">Please wait 15-30 seconds.</small>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            scrollToBottom();
+
+            try {
+                const response = await fetch(backendUrl + '/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    throw new Error('Server returned an invalid response (' + response.status + ')');
+                }
+
+                // Remove loading message
+                loadingDiv.remove();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Image generation failed (' + response.status + ')');
+                }
+
+                // Generated image
+                const div = document.createElement('div');
+                div.className = 'message bot';
+                const safePrompt = escapeHtml(prompt);
+
+                div.innerHTML = `
+                    <div class="message-avatar">🎨</div>
+                    <div class="message-content-wrapper">
+                        <div class="message-content">
+                            <p>🎨 <strong>Generated Image</strong></p>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">"${safePrompt}"</p>
+                            <img src="${data.image}" class="generated-image" alt="${safePrompt}" loading="lazy">
+                            <br>
+                            <a href="${data.image}" download="generated-image.png" style="color: var(--cyan); font-size: 0.85rem;">⬇️ Download Image</a>
+                        </div>
+                    </div>
+                `;
+
+                messagesContainer.appendChild(div);
+                scrollToBottom();
+                showToast('✅ Image generated successfully!', 'success');
+
+            } catch (err) {
+                // Remove loading message if it still exists
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.remove();
+                }
+
+                console.error('Image generation error:', err);
+                showToast('❌ ' + err.message, 'error');
+
+                // Model loading retry message
+                if (err.message.toLowerCase().includes('loading')) {
+                    setTimeout(() => {
+                        showToast('🔄 The model may be ready now. Try again.', 'info');
+                    }, 3000);
+                }
+
+            } finally {
+                btn.classList.remove('generating');
+                btn.disabled = false;
             }
         }
 
