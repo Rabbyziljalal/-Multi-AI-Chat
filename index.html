@@ -717,6 +717,23 @@
             object-fit: cover;
             border: 1px solid var(--border);
         }
+        .image-download-btn {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .image-download-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--cyan);
+        }
         .attached-file-info {
             display: flex;
             align-items: center;
@@ -2463,7 +2480,7 @@
                     welcome.style.display = 'none';
                     msgs.style.display = 'flex';
                     msgs.innerHTML = '';
-                    chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
+                    chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg, msg.generatedImage); });
                     stopSpeech();
                     scrollToBottom();
                 }
@@ -2489,7 +2506,7 @@
                         welcome.style.display = 'none';
                         msgs.style.display = 'flex';
                         msgs.innerHTML = '';
-                        chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg); });
+                        chat.messages.forEach(function(msg) { appendMessage(msg.role, msg.content, msg.attachment, false, msg, msg.generatedImage); });
                         stopSpeech();
                         scrollToBottom();
                     }
@@ -2696,7 +2713,7 @@
             renderChatList();
         }
 
-        function appendMessage(role, content, attachment, animate, msgData) {
+        function appendMessage(role, content, attachment, animate, msgData, generatedImage) {
             // Normalize the stored 'assistant' role to 'bot' so restored messages
             // get the correct DOM class, avatar, and action-row rendering.
             if (role === 'assistant') role = 'bot';
@@ -2715,6 +2732,16 @@
                 } else if (attachment.type === 'pdf') {
                     attachmentHtml = '<div class="attached-file-info"><span class="file-icon">📄</span><span class="file-name">' + attachment.name + '</span></div>';
                 }
+            }
+
+            // NEW: render a generated image + download button for bot messages that have one
+            let generatedImageHtml = '';
+            if (generatedImage && role === 'bot') {
+                const dataUrl = 'data:' + generatedImage.mimeType + ';base64,' + generatedImage.base64;
+                const safeFilename = (generatedImage.prompt || 'generated-image').replace(/[^a-z0-9]/gi, '_').slice(0, 50) + '.jpg';
+                generatedImageHtml =
+                    '<img src="' + dataUrl + '" class="attached-image" alt="' + escapeHtml(generatedImage.prompt || '') + '" style="max-width:100%;"><br>' +
+                    '<a href="' + dataUrl + '" download="' + safeFilename + '" class="image-download-btn">⬇️ Download</a>';
             }
 
             // For user messages, ensure a stable id exists (generate + persist once) so
@@ -2753,7 +2780,7 @@
                     '</div>';
             }
 
-            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div>' + userActionsHtml + '</div>';
+            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + generatedImageHtml + formatContent(content) + '</div>' + userActionsHtml + '</div>';
 
             // For assistant messages restored from saved chats, recreate the full action row
             if (role === 'bot' && msgData) {
@@ -3061,11 +3088,19 @@
                 }
 
                 const imageDataUrl = 'data:' + data.mimeType + ';base64,' + data.imageBase64;
-                contentDiv.innerHTML = '<img src="' + imageDataUrl + '" class="attached-image" alt="' + escapeHtml(prompt) + '" style="max-width:100%;">';
+                const safeFilename = prompt.replace(/[^a-z0-9]/gi, '_').slice(0, 50) + '.jpg';
+                contentDiv.innerHTML =
+                    '<img src="' + imageDataUrl + '" class="attached-image" alt="' + escapeHtml(prompt) + '" style="max-width:100%;"><br>' +
+                    '<a href="' + imageDataUrl + '" download="' + safeFilename + '" class="image-download-btn">⬇️ Download</a>';
 
                 chats[currentChatId].messages.push({
                     role: 'assistant',
-                    content: '[Generated image for: ' + prompt + ']' // text placeholder saved to history (images aren't re-sent as context to the AI)
+                    content: '[Generated image for: ' + prompt + ']',
+                    generatedImage: {
+                        base64: data.imageBase64,
+                        mimeType: data.mimeType,
+                        prompt: prompt
+                    }
                 });
                 saveChats();
 

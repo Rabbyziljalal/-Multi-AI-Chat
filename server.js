@@ -925,10 +925,65 @@ app.post('/chat', requireAuth, async (req, res) => {
 // ============================================
 // IMAGE GENERATION (free, via Pollinations.ai — no API key, no limits)
 // ============================================
+
+// ---- Enhance (and translate if needed) prompts before sending to Pollinations ----
+// Pollinations.ai's underlying image model produces much better results when given
+// a vivid, detailed, well-structured English prompt. This helper uses the existing
+// Gemini integration to rewrite ANY prompt (English or non-English) into a more
+// descriptive, composition-aware prompt — adding lighting, mood, and style details
+// while staying faithful to what the user actually asked for. This significantly
+// improves output quality for any diffusion-based image model.
+async function enhanceImagePrompt(userPrompt) {
+    try {
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' + process.env.GEMINI_API_KEY;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    role: 'user',
+                    parts: [{
+                        text: 'You are an expert AI image generation prompt writer. Take the user\'s request below ' +
+                              '(it may be in any language) and rewrite it as a single, vivid, highly descriptive ' +
+                              'English prompt suitable for an AI image generator. Include relevant details like ' +
+                              'composition, lighting, mood, and art style/photography style if not already specified, ' +
+                              'while staying faithful to what the user actually asked for — do not change the subject ' +
+                              'or add unrelated elements. Output ONLY the final prompt text, nothing else — ' +
+                              'no quotes, no explanation, no labels.\n\n' +
+                              'User request: ' + userPrompt
+                    }]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            console.warn('Prompt enhancement failed with status ' + response.status + ', using original prompt');
+            return userPrompt;
+        }
+
+        const data = await response.json();
+        const enhanced = data.candidates &&
+            data.candidates[0] &&
+            data.candidates[0].content &&
+            data.candidates[0].content.parts &&
+            data.candidates[0].content.parts[0] &&
+            data.candidates[0].content.parts[0].text;
+
+        return enhanced ? enhanced.trim() : userPrompt;
+    } catch (err) {
+        console.warn('Prompt enhancement error, using original prompt:', err.message);
+        return userPrompt; // never let enhancement failure block image generation
+    }
+}
+
 async function generateImageWithPollinations(prompt) {
   const encodedPrompt = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000000); // random seed so the same prompt doesn't return an identical cached image every time
-  const imageUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?seed=' + seed + '&nologo=true';
+  const imageUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt +
+    '?seed=' + seed +
+    '&model=flux' +           // NEW: much higher quality than the default model
+    '&width=1024&height=1024' + // NEW: solid resolution instead of relying on defaults
+    '&nologo=true';
 
   const response = await fetch(imageUrl);
   if (!response.ok) {
@@ -951,11 +1006,14 @@ app.post('/imagine', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'A prompt is required' });
     }
 
-    const image = await generateImageWithPollinations(prompt.trim());
+    const enhancedPrompt = await enhanceImagePrompt(prompt.trim());
+    console.log('Image prompt — original:', prompt.trim(), '| enhanced:', enhancedPrompt);
+
+    const image = await generateImageWithPollinations(enhancedPrompt);
     res.json({
       imageBase64: image.base64,
       mimeType: image.mimeType,
-      prompt: prompt.trim()
+      prompt: prompt.trim() // still show the user's original text in chat, not the enhanced version
     });
   } catch (err) {
     console.error('Image generation failed:', err.message);
