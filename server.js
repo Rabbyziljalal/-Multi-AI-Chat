@@ -922,6 +922,47 @@ app.post('/chat', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================
+// IMAGE GENERATION (free, via Pollinations.ai — no API key, no limits)
+// ============================================
+async function generateImageWithPollinations(prompt) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const seed = Math.floor(Math.random() * 1000000); // random seed so the same prompt doesn't return an identical cached image every time
+  const imageUrl = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?seed=' + seed + '&nologo=true';
+
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error('Pollinations image generation failed with status ' + response.status);
+  }
+
+  const buffer = await response.buffer(); // node-fetch v2 style
+  const base64Image = buffer.toString('base64');
+  return {
+    base64: base64Image,
+    mimeType: 'image/jpeg'
+  };
+}
+
+// ---- POST /imagine — generate an image from a text prompt (auth required) ----
+app.post('/imagine', requireAuth, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ error: 'A prompt is required' });
+    }
+
+    const image = await generateImageWithPollinations(prompt.trim());
+    res.json({
+      imageBase64: image.base64,
+      mimeType: image.mimeType,
+      prompt: prompt.trim()
+    });
+  } catch (err) {
+    console.error('Image generation failed:', err.message);
+    res.status(500).json({ error: 'Sorry, I could not generate the image. Please try again.' });
+  }
+});
+
 async function handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 

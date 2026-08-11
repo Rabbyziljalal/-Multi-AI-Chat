@@ -2034,7 +2034,7 @@
                 <div class="attachment-preview" id="attachmentPreview"></div>
                 <div class="input-row">
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
-                    <textarea id="userInput" placeholder="Message Multi-AI..." rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
+                    <textarea id="userInput" placeholder="Message Multi-AI... (try /imagine a sunset)" rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
                         <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
                             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -2905,6 +2905,21 @@
             const attachment = overrideAttachment !== undefined ? overrideAttachment : currentAttachment;
             if ((!text && !attachment) || isGenerating) return;
 
+            // NEW: handle /imagine command separately from normal chat
+            if (text.toLowerCase().startsWith('/imagine ')) {
+                const imagePrompt = text.slice('/imagine '.length).trim();
+                if (!imagePrompt) {
+                    showToast('Please provide a description after /imagine', 'error');
+                    return;
+                }
+                if (overrideText === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+                await handleImagineCommand(imagePrompt);
+                return; // skip the normal chat send flow entirely
+            }
+
             // Create a new chat if none is active (e.g. after page load with welcome screen)
             if (!currentChatId || !chats[currentChatId]) {
                 const id = 'chat_' + Date.now();
@@ -2990,6 +3005,77 @@
                 setSendButtonToSendState();
                 setRegenerateButtonsDisabled(false);
                 removeAttachment();
+            }
+        }
+
+        // ---- /imagine command: generate an image via Pollinations.ai (free, no API key) ----
+        async function handleImagineCommand(prompt) {
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            // Show the user's /imagine request as a normal user message bubble
+            const userDisplayText = '🎨 /imagine ' + prompt;
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userDisplayText,
+                attachment: null,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = '🎨 ' + prompt;
+                chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
+                renderChatList();
+            }
+
+            appendMessage('user', userDisplayText, null, true, userMsg);
+            saveChats();
+
+            // Show a loading placeholder while the image generates
+            const botMsg = appendMessage('bot', '', null);
+            const contentDiv = botMsg.querySelector('.message-content');
+            contentDiv.innerHTML = '<span style="color:var(--text-secondary)">🎨 Generating image...</span>';
+            isGenerating = true;
+            setSendButtonToStopState();
+
+            try {
+                const response = await fetch(backendUrl + '/imagine', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('authToken') || '')
+                    },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Image generation failed');
+                }
+
+                const imageDataUrl = 'data:' + data.mimeType + ';base64,' + data.imageBase64;
+                contentDiv.innerHTML = '<img src="' + imageDataUrl + '" class="attached-image" alt="' + escapeHtml(prompt) + '" style="max-width:100%;">';
+
+                chats[currentChatId].messages.push({
+                    role: 'assistant',
+                    content: '[Generated image for: ' + prompt + ']' // text placeholder saved to history (images aren't re-sent as context to the AI)
+                });
+                saveChats();
+
+            } catch (err) {
+                contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                showToast('Image generation error: ' + err.message, 'error');
+            } finally {
+                isGenerating = false;
+                setSendButtonToSendState();
+                scrollToBottom();
             }
         }
 
