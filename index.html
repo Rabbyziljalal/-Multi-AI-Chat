@@ -1910,9 +1910,6 @@
                             <option value="openrouter:nvidia/nemotron-3-super-120b-a12b:free">NVIDIA Nemotron 3 Super 120B</option>
                             <option value="openrouter:nvidia/nemotron-nano-12b-v2-vl:free">NVIDIA Nemotron Nano 12B VL</option>
                         </optgroup>
-                        <optgroup label="SambaNova (free, permanent)">
-                            <option value="sambanova:Meta-Llama-3.3-70B-Instruct">Llama 3.3 70B (SambaNova)</option>
-                        </optgroup>
                     </select>
                 </div>
                 <div class="connection-status connecting" id="connStatus">
@@ -2018,11 +2015,6 @@
                         <div class="qa-icon">⚡</div>
                         <div class="qa-text">Get tips</div>
                         <div class="qa-desc">Actionable advice</div>
-                    </div>
-                    <div class="quick-action" onclick="document.getElementById('userInput').value='/imagine '; document.getElementById('userInput').focus();">
-                        <div class="qa-icon">🎨</div>
-                        <div class="qa-text">Generate an image</div>
-                        <div class="qa-desc">Type /imagine followed by what you want to see</div>
                     </div>
                 </div>
             </div>
@@ -2761,13 +2753,7 @@
                     '</div>';
             }
 
-            // If this assistant message has a generated image, render it inline
-            let generatedImageHtml = '';
-            if (role === 'bot' && msgData && msgData.generatedImage) {
-                generatedImageHtml = '<img src="data:' + msgData.generatedImage.mimeType + ';base64,' + msgData.generatedImage.base64 + '" style="max-width:100%; border-radius:12px; margin-top:8px;" />';
-            }
-
-            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + generatedImageHtml + '</div>' + userActionsHtml + '</div>';
+            div.innerHTML = '<div class="message-avatar">' + (role === 'user' ? '👤' : '🤖') + '</div><div class="message-content-wrapper"><div class="message-content">' + attachmentHtml + formatContent(content) + '</div>' + userActionsHtml + '</div>';
 
             // For assistant messages restored from saved chats, recreate the full action row
             if (role === 'bot' && msgData) {
@@ -2919,17 +2905,6 @@
             const attachment = overrideAttachment !== undefined ? overrideAttachment : currentAttachment;
             if ((!text && !attachment) || isGenerating) return;
 
-            // NEW: detect image generation command
-            const imagineMatch = text.match(/^\/imagine\s+(.+)/i);
-            if (imagineMatch) {
-                await handleImageGeneration(imagineMatch[1]);
-                if (overrideText === undefined) {
-                    input.value = '';
-                    input.style.height = 'auto';
-                }
-                return;
-            }
-
             // Create a new chat if none is active (e.g. after page load with welcome screen)
             if (!currentChatId || !chats[currentChatId]) {
                 const id = 'chat_' + Date.now();
@@ -3016,75 +2991,6 @@
                 setRegenerateButtonsDisabled(false);
                 removeAttachment();
             }
-        }
-
-        // ---- Image generation via /imagine command ----
-        async function handleImageGeneration(prompt) {
-            if (!currentChatId || !chats[currentChatId]) {
-                const id = 'chat_' + Date.now();
-                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
-                currentChatId = id;
-                saveChats();
-                renderChatList();
-            }
-            const chat = chats[currentChatId];
-
-            // Show the user's prompt as a normal message bubble
-            const userMsg = {
-                id: generateMessageId(),
-                role: 'user',
-                content: '/imagine ' + prompt,
-                timestamp: Date.now()
-            };
-            chat.messages.push(userMsg);
-            appendMessage('user', userMsg.content, null, true, userMsg);
-            saveChats();
-
-            // Show a loading placeholder
-            const loadingMsg = {
-                id: generateMessageId(),
-                role: 'assistant',
-                content: '🎨 Generating image...',
-                msgId: generateMessageId(),
-                provider: 'gemini',
-                model: 'gemini-2.5-flash-image',
-                timestamp: Date.now()
-            };
-            chat.messages.push(loadingMsg);
-            const loadingEl = appendMessage('bot', loadingMsg.content, null, true, loadingMsg);
-
-            try {
-                const response = await fetch(backendUrl + '/generate-image', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
-                    },
-                    body: JSON.stringify({ prompt })
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    loadingMsg.content = '';
-                    loadingMsg.generatedImage = {
-                        base64: data.imageBase64,
-                        mimeType: data.mimeType
-                    };
-                    // Re-render this message to show the image
-                    const contentDiv = loadingEl.querySelector('.message-content');
-                    contentDiv.innerHTML = '<img src="data:' + data.mimeType + ';base64,' + data.imageBase64 + '" style="max-width:100%; border-radius:12px; margin-top:8px;" />';
-                } else {
-                    loadingMsg.content = '❌ Sorry, I could not generate that image: ' + (data.error || 'unknown error');
-                    const contentDiv = loadingEl.querySelector('.message-content');
-                    contentDiv.innerHTML = formatContent(loadingMsg.content);
-                }
-            } catch (err) {
-                loadingMsg.content = '❌ Image generation failed — check your connection';
-                const contentDiv = loadingEl.querySelector('.message-content');
-                contentDiv.innerHTML = formatContent(loadingMsg.content);
-            }
-
-            saveChats();
         }
 
         // ---- Event delegation: Retry / Edit / Copy buttons under user messages ----
@@ -3729,7 +3635,7 @@
         function populateProviders() {
             const list = document.getElementById('providerList');
             if (!list || list.children.length > 0) return;
-            ['OpenAI', 'Google', 'DeepSeek', 'Groq', 'BigModel', 'OpenRouter', 'SambaNova'].forEach(function(p) {
+            ['OpenAI', 'Google', 'DeepSeek', 'Groq', 'BigModel', 'OpenRouter'].forEach(function(p) {
                 const chip = document.createElement('span');
                 chip.className = 'settings-provider-chip';
                 chip.textContent = p;

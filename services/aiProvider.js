@@ -270,8 +270,6 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
     pushOpenAICompat('https://api.groq.com/openai/v1/chat/completions', process.env.GROQ_API_KEY, userModel, 'User selection: Groq (' + userModel + ')', 'groq');
   } else if (userProvider === 'openrouter') {
     pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, userModel, 'User selection: OpenRouter (' + userModel + ')', 'openrouter');
-  } else if (userProvider === 'sambanova') {
-    pushOpenAICompat('https://api.sambanova.ai/v1/chat/completions', process.env.SAMBANOVA_API_KEY, userModel, 'User selection: SambaNova (' + userModel + ')', 'sambanova');
   }
 
   // 2. Flash Lite fallback ladder — SKIPPED ENTIRELY if the user specifically
@@ -296,9 +294,6 @@ function buildAttempts(userProvider, userModel, messages, imageBase64, imageMime
   }
   if (!(userProvider === 'openrouter')) {
     pushOpenAICompat('https://openrouter.ai/api/v1/chat/completions', process.env.OPENROUTER_API_KEY, 'openai/gpt-oss-20b:free', 'Fallback: OpenRouter', 'openrouter');
-  }
-  if (!(userProvider === 'sambanova')) {
-    pushOpenAICompat('https://api.sambanova.ai/v1/chat/completions', process.env.SAMBANOVA_API_KEY, 'Meta-Llama-3.3-70B-Instruct', 'Fallback: SambaNova', 'sambanova');
   }
 
   return attempts;
