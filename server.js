@@ -65,6 +65,7 @@ const API_KEYS = {
   deepseek: process.env.DEEPSEEK_API_KEY,
   groq: process.env.GROQ_API_KEY,
   openrouter: process.env.OPENROUTER_API_KEY,   // NEW
+  sambanova: process.env.SAMBANOVA_API_KEY,     // NEW
 };
 
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
@@ -707,9 +708,10 @@ const FALLBACK_MODEL_MAP = {
   groq: 'llama-3.3-70b-versatile',
   bigmodel: 'glm-4-flash',
   openrouter: 'openai/gpt-oss-20b:free',  // NEW
+  sambanova: 'Meta-Llama-3.3-70B-Instruct',   // NEW — verified current model ID from SambaNova's /v1/models endpoint
 };
 
-const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel', 'openrouter'];
+const FALLBACK_ORDER = ['gemini', 'groq', 'bigmodel', 'openrouter', 'sambanova'];
 
 function isRetryableError(status) {
   return status === 429 || status === 404 || status === 503;
@@ -922,6 +924,59 @@ app.post('/chat', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================
+// IMAGE GENERATION (Gemini "Nano Banana")
+// ============================================
+app.post('/generate-image', requireAuth, async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ success: false, error: 'A text prompt is required' });
+  }
+
+  const apiKey = getNextGeminiKey(); // reuse the existing key-rotation helper
+  if (!apiKey) {
+    return res.status(500).json({ success: false, error: 'Gemini not configured' });
+  }
+
+  try {
+    const model = 'gemini-2.5-flash-image'; // "Nano Banana" — verified current model ID from Gemini's models list
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Image generation failed:', errText);
+      return res.status(response.status).json({ success: false, error: 'Image generation failed' });
+    }
+
+    const data = await response.json();
+    // Find the image part in the response (inlineData with image mime type)
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find(p => p.inlineData && p.inlineData.mimeType?.startsWith('image/'));
+
+    if (!imagePart) {
+      return res.status(500).json({ success: false, error: 'No image was generated' });
+    }
+
+    res.json({
+      success: true,
+      imageBase64: imagePart.inlineData.data,
+      mimeType: imagePart.inlineData.mimeType
+    });
+
+  } catch (err) {
+    console.error('Image generation error:', err.message);
+    res.status(500).json({ success: false, error: 'Image generation failed' });
+  }
+});
+
 async function handleGemini(model, apiKey, messages, imageBase64, imageMimeType, pdfText) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
@@ -991,6 +1046,8 @@ async function handleOpenAICompatible(provider, model, apiKey, messages, imageBa
     url = 'https://api.groq.com/openai/v1/chat/completions';
   } else if (provider === 'openrouter') {
     url = 'https://openrouter.ai/api/v1/chat/completions';
+  } else if (provider === 'sambanova') {
+    url = 'https://api.sambanova.ai/v1/chat/completions';
   }
 
   const headers = {
