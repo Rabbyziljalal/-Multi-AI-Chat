@@ -952,7 +952,7 @@ app.post('/api/generate-image', async (req, res) => {
         console.log(`🎨 Generating image for prompt: ${prompt}`);
 
         const response = await axios.post(
-            'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev',
+            'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-dev',
             {
                 inputs: prompt.trim()
             },
