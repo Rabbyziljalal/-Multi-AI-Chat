@@ -923,7 +923,7 @@ app.post('/chat', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// AI IMAGE GENERATION via Hugging Face FLUX.1-dev
+// AI IMAGE GENERATION via Pollinations.ai (free, no API key)
 // ============================================
 app.post('/api/generate-image', async (req, res) => {
     const { prompt } = req.body;
@@ -937,81 +937,25 @@ app.post('/api/generate-image', async (req, res) => {
     }
 
     try {
-        const HF_TOKEN = process.env.HF_API_TOKEN;
-
-        // Check Hugging Face token
-        if (!HF_TOKEN) {
-            console.error('HF_API_TOKEN is not configured');
-
-            return res.status(500).json({
-                success: false,
-                error: 'HF_API_TOKEN is not configured on the server'
-            });
-        }
-
         console.log(`🎨 Generating image for prompt: ${prompt}`);
 
-        const response = await axios.post(
-            'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-dev',
-            {
-                inputs: prompt.trim()
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${HF_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                responseType: 'arraybuffer',
-                timeout: 120000
-            }
-        );
+        // Enhance the prompt for better results (same approach as /imagine)
+        const enhancedPrompt = await enhanceImagePrompt(prompt.trim());
+        console.log('Image prompt — original:', prompt.trim(), '| enhanced:', enhancedPrompt);
 
-        // Convert generated image to Base64
-        const base64Image = Buffer
-            .from(response.data, 'binary')
-            .toString('base64');
-
-        const mimeType = 'image/png';
+        // Generate via Pollinations.ai — free, no API key required
+        const image = await generateImageWithPollinations(enhancedPrompt);
 
         console.log('✅ Image generated successfully');
 
         return res.json({
             success: true,
             prompt: prompt.trim(),
-            image: `data:${mimeType};base64,${base64Image}`
+            image: `data:${image.mimeType};base64,${image.base64}`
         });
 
     } catch (error) {
-        console.error(
-            '❌ Image generation error:',
-            error.response?.data || error.message
-        );
-
-        // Hugging Face model is still loading
-        if (error.response?.status === 503) {
-            return res.status(503).json({
-                success: false,
-                error: 'Model is loading. Please try again in 20-30 seconds.',
-                retryable: true
-            });
-        }
-
-        // Authentication error
-        if (error.response?.status === 401) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid Hugging Face API token.'
-            });
-        }
-
-        // Rate limit
-        if (error.response?.status === 429) {
-            return res.status(429).json({
-                success: false,
-                error: 'Hugging Face rate limit reached. Please try again later.',
-                retryable: true
-            });
-        }
+        console.error('❌ Image generation error:', error.message);
 
         return res.status(500).json({
             success: false,
