@@ -1005,6 +1005,34 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        /* -------- Search-and-polish (real photo search) button -------- */
+        .img-search-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+        .img-search-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+        }
+        .img-search-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .img-search-btn.generating {
+            animation: imageGenSpin 1s linear infinite;
+            opacity: 0.7;
+        }
         /* Generated image inside chat */
         .generated-image {
             display: block;
@@ -2101,10 +2129,19 @@
                             class="img-gen-btn"
                             id="imgGenBtn"
                             onclick="generateImage()"
-                            title="Generate Image"
-                            aria-label="Generate Image"
+                            title="Generate Image (pure AI)"
+                            aria-label="Generate Image (pure AI)"
                         >
                             🎨
+                        </button>
+                        <button
+                            class="img-search-btn"
+                            id="imgSearchBtn"
+                            onclick="generateImageFromSearch()"
+                            title="Search a real photo + enhance"
+                            aria-label="Search a real photo + enhance"
+                        >
+                            🔍
                         </button>
                         <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
                             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -3216,6 +3253,123 @@
                         showToast('🔄 The model may be ready now. Try again.', 'info');
                     }, 3000);
                 }
+
+            } finally {
+                btn.classList.remove('generating');
+                btn.disabled = false;
+            }
+        }
+
+        // ============================================
+        // SEARCH-AND-POLISH IMAGE GENERATION
+        // ============================================
+        // Finds a real photo via Serper image search, then polishes it through
+        // the Pollinations "kontext" editing pipeline. Distinct from the pure-AI
+        // 🎨 button. The backend returns a `sourceNote` so we can disclose that
+        // the result is based on a real photo (which may be copyrighted — see the
+        // backend comment; this is for personal/non-commercial use only).
+        async function generateImageFromSearch() {
+            const input = document.getElementById('userInput');
+            const btn = document.getElementById('imgSearchBtn');
+            const messagesContainer = document.getElementById('messages');
+
+            if (!input || !btn || !messagesContainer) {
+                console.error('Search-image UI elements not found');
+                return;
+            }
+
+            const prompt = input.value.trim();
+
+            // Validate prompt
+            if (!prompt) {
+                showToast('❌ Describe what photo you want to search for!', 'error');
+                return;
+            }
+
+            // Prevent multiple requests
+            if (btn.disabled) {
+                return;
+            }
+
+            btn.classList.add('generating');
+            btn.disabled = true;
+
+            // Add user's request to chat
+            const userLabel = '🔍 Search + Enhance: ' + escapeHtml(prompt);
+            appendMessage('user', userLabel, null);
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot';
+            loadingDiv.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content-wrapper">
+                    <div class="message-content">
+                        🔍 Searching for a real photo and enhancing it...
+                        <br>
+                        <small style="color: var(--text-muted);">Please wait 15-30 seconds.</small>
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            scrollToBottom();
+
+            try {
+                const response = await fetch(backendUrl + '/api/generate-image-from-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    throw new Error('Server returned an invalid response (' + response.status + ')');
+                }
+
+                // Remove loading message
+                loadingDiv.remove();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Image generation failed (' + response.status + ')');
+                }
+
+                // Generated image
+                const div = document.createElement('div');
+                div.className = 'message bot';
+                const safePrompt = escapeHtml(prompt);
+                const sourceNote = data.sourceNote ? escapeHtml(data.sourceNote) : '';
+
+                div.innerHTML = `
+                    <div class="message-avatar">🔍</div>
+                    <div class="message-content-wrapper">
+                        <div class="message-content">
+                            <p>🔍 <strong>Search + Enhanced Image</strong></p>
+                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">"${safePrompt}"</p>
+                            ${sourceNote ? '<p style="color: var(--warning); font-size: 0.8rem; margin-bottom: 8px;">' + sourceNote + '</p>' : ''}
+                            <img src="${data.image}" class="generated-image" alt="${safePrompt}" loading="lazy">
+                            <br>
+                            <a href="${data.image}" download="search-enhanced-image.png" style="color: var(--cyan); font-size: 0.85rem;">⬇️ Download Image</a>
+                        </div>
+                    </div>
+                `;
+
+                messagesContainer.appendChild(div);
+                scrollToBottom();
+                showToast('✅ Image ready!', 'success');
+
+            } catch (err) {
+                // Remove loading message if it still exists
+                if (loadingDiv && loadingDiv.parentNode) {
+                    loadingDiv.remove();
+                }
+
+                console.error('Search-image generation error:', err);
+                showToast('❌ ' + err.message, 'error');
 
             } finally {
                 btn.classList.remove('generating');

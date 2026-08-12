@@ -966,6 +966,118 @@ app.post('/api/generate-image', async (req, res) => {
     }
 });
 
+// ---- Reusable "kontext" image-editing pipeline ----
+// Sends an image buffer + prompt through Pollinations' OpenAI-compatible
+// /v1/images/edits endpoint (model: kontext) and returns a base64 data URL.
+// Handles JSON (url / b64_json) and raw-binary responses, and sniffs the
+// actual image format so the data:image/...;base64,... prefix is correct.
+async function editImageWithKontext(imageBuffer, mimeType, prompt) {
+    // The gen.pollinations.ai/v1/images/edits endpoint requires an API key via
+    // the Authorization header. Fail fast with a clear error if it's not
+    // configured, so misconfiguration is obvious in the logs rather than a
+    // generic 401 from the provider.
+    if (!process.env.POLLINATIONS_API_KEY) {
+        throw new Error('POLLINATIONS_API_KEY is not configured on the server');
+    }
+
+    const detectedMimeType = mimeType || 'image/jpeg';
+    const fileExt = detectedMimeType.indexOf('png') !== -1 ? 'png' : 'jpg';
+
+    // Build the multipart form body
+    const form = new FormData();
+    form.append('image', imageBuffer, {
+        filename: 'input.' + fileExt,
+        contentType: detectedMimeType
+    });
+    form.append('prompt', prompt.trim());
+    form.append('model', 'kontext');
+
+    // Send to Pollinations' OpenAI-compatible image-edits endpoint.
+    // Accepts the uploaded file directly via multipart — no public URL needed.
+    const response = await axios.post(
+        'https://gen.pollinations.ai/v1/images/edits',
+        form,
+        {
+            headers: Object.assign({}, form.getHeaders(), {
+                'Authorization': 'Bearer ' + process.env.POLLINATIONS_API_KEY
+            }),
+            responseType: 'arraybuffer',
+            timeout: 120000
+        }
+    );
+
+    // ---- Determine the response format (JSON vs raw binary) ----
+    // The OpenAI-compatible /v1/images/edits endpoint typically returns JSON
+    // ({ "data": [ { "url": ... } ] } or { "data": [ { "b64_json": ... } ] }),
+    // NOT raw image bytes — so the old buffer-to-base64 logic could produce a
+    // corrupted file. Log what we actually got so it's visible in Render logs.
+    const contentTypeHeader = String(response.headers['content-type'] || '');
+    const rawResponseBuf = Buffer.isBuffer(response.data) ? response.data : Buffer.from(response.data);
+    const headSnippet = rawResponseBuf.toString('utf8', 0, 200);
+    console.log('Pollinations edit response content-type:', contentTypeHeader);
+    console.log('Pollinations edit response first 200 chars:', headSnippet);
+
+    let base64Image;
+    let resultMimeType;
+
+    if (contentTypeHeader.indexOf('application/json') !== -1 || headSnippet.trim().startsWith('{')) {
+        // ---- OpenAI-style JSON response ----
+        let parsed;
+        try {
+            parsed = JSON.parse(rawResponseBuf.toString('utf8'));
+        } catch (err) {
+            throw new Error('Failed to parse JSON response from image-edits endpoint: ' + err.message);
+        }
+
+        const item = parsed && parsed.data && parsed.data[0];
+        if (!item) {
+            const errDetail = (parsed && parsed.error && (parsed.error.message || JSON.stringify(parsed.error))) || JSON.stringify(parsed);
+            throw new Error('Pollinations image edit returned no data: ' + errDetail);
+        }
+
+        if (item.b64_json) {
+            // Base64 image directly in the JSON response.
+            // OpenAI b64_json payloads are PNGs by default, but Pollinations may
+            // return JPEG or WebP — sniff the actual format from the magic bytes
+            // so the data:image/...;base64,... prefix matches the real content.
+            base64Image = item.b64_json.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+            const header = base64Image.slice(0, 24);
+            if (header.indexOf('/9j/') === 0) {
+                resultMimeType = 'image/jpeg';
+            } else if (header.indexOf('iVBORw0KGgo') === 0) {
+                resultMimeType = 'image/png';
+            } else if (header.indexOf('UklGR') === 0) {
+                resultMimeType = 'image/webp';
+            } else if (header.indexOf('R0lGOD') === 0) {
+                resultMimeType = 'image/gif';
+            } else {
+                resultMimeType = 'image/png'; // safe default
+            }
+        } else if (item.url) {
+            // The JSON gives us a URL — fetch it server-side and convert to base64
+            const imgResp = await fetchWithTimeout(item.url, {}, 120000);
+            if (!imgResp.ok) {
+                throw new Error('Failed to fetch edited image from returned URL, status ' + imgResp.status);
+            }
+            const imgBuffer = await imgResp.buffer();
+            base64Image = imgBuffer.toString('base64');
+            resultMimeType = (imgResp.headers.get('content-type') || 'image/png').split(';')[0].trim() || 'image/png';
+        } else {
+            throw new Error('Pollinations image edit response had neither url nor b64_json');
+        }
+    } else {
+        // ---- Raw binary image data ----
+        // response.data is already a Buffer (responseType: 'arraybuffer') —
+        // do NOT re-encode through latin1, which corrupts binary data.
+        base64Image = rawResponseBuf.toString('base64');
+        resultMimeType = (contentTypeHeader || 'image/png').split(';')[0].trim() || 'image/png';
+    }
+
+    console.log('✅ Image edited successfully (' + resultMimeType + ')');
+
+    return `data:${resultMimeType};base64,${base64Image}`;
+}
+
 // ============================================
 // AI IMAGE EDITING via Pollinations.ai kontext model (image-to-image)
 // ============================================
@@ -977,17 +1089,6 @@ app.post('/api/generate-image', async (req, res) => {
 // which accepts the image as a multipart file upload directly ("image=@file"),
 // rather than the URL-based endpoint that requires a publicly accessible image URL.
 app.post('/api/edit-image', async (req, res) => {
-    // The gen.pollinations.ai/v1/images/edits endpoint requires an API key via
-    // the Authorization header. Fail fast with a clear error if it's not
-    // configured, so misconfiguration is obvious in the logs rather than a
-    // generic 401 from the provider.
-    if (!process.env.POLLINATIONS_API_KEY) {
-        return res.status(500).json({
-            success: false,
-            error: 'POLLINATIONS_API_KEY is not configured on the server'
-        });
-    }
-
     const { image, mimeType, prompt } = req.body;
 
     // Validate inputs
@@ -1016,105 +1117,13 @@ app.post('/api/edit-image', async (req, res) => {
 
         // Convert base64 to a Buffer for the multipart upload
         const imageBuffer = Buffer.from(cleanBase64, 'base64');
-        const detectedMimeType = mimeType || 'image/jpeg';
-        const fileExt = detectedMimeType.indexOf('png') !== -1 ? 'png' : 'jpg';
 
-        // Build the multipart form body
-        const form = new FormData();
-        form.append('image', imageBuffer, {
-            filename: 'input.' + fileExt,
-            contentType: detectedMimeType
-        });
-        form.append('prompt', prompt.trim());
-        form.append('model', 'kontext');
-
-        // Send to Pollinations' OpenAI-compatible image-edits endpoint.
-        // Accepts the uploaded file directly via multipart — no public URL needed.
-        const response = await axios.post(
-            'https://gen.pollinations.ai/v1/images/edits',
-            form,
-            {
-                headers: Object.assign({}, form.getHeaders(), {
-                    'Authorization': 'Bearer ' + process.env.POLLINATIONS_API_KEY
-                }),
-                responseType: 'arraybuffer',
-                timeout: 120000
-            }
-        );
-
-        // ---- Determine the response format (JSON vs raw binary) ----
-        // The OpenAI-compatible /v1/images/edits endpoint typically returns JSON
-        // ({ "data": [ { "url": ... } ] } or { "data": [ { "b64_json": ... } ] }),
-        // NOT raw image bytes — so the old buffer-to-base64 logic could produce a
-        // corrupted file. Log what we actually got so it's visible in Render logs.
-        const contentTypeHeader = String(response.headers['content-type'] || '');
-        const rawResponseBuf = Buffer.isBuffer(response.data) ? response.data : Buffer.from(response.data);
-        const headSnippet = rawResponseBuf.toString('utf8', 0, 200);
-        console.log('Pollinations edit response content-type:', contentTypeHeader);
-        console.log('Pollinations edit response first 200 chars:', headSnippet);
-
-        let base64Image;
-        let resultMimeType;
-
-        if (contentTypeHeader.indexOf('application/json') !== -1 || headSnippet.trim().startsWith('{')) {
-            // ---- OpenAI-style JSON response ----
-            let parsed;
-            try {
-                parsed = JSON.parse(rawResponseBuf.toString('utf8'));
-            } catch (err) {
-                throw new Error('Failed to parse JSON response from image-edits endpoint: ' + err.message);
-            }
-
-            const item = parsed && parsed.data && parsed.data[0];
-            if (!item) {
-                const errDetail = (parsed && parsed.error && (parsed.error.message || JSON.stringify(parsed.error))) || JSON.stringify(parsed);
-                throw new Error('Pollinations image edit returned no data: ' + errDetail);
-            }
-
-            if (item.b64_json) {
-                // Base64 image directly in the JSON response.
-                // OpenAI b64_json payloads are PNGs by default, but Pollinations may
-                // return JPEG or WebP — sniff the actual format from the magic bytes
-                // so the data:image/...;base64,... prefix matches the real content.
-                base64Image = item.b64_json.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
-                const header = base64Image.slice(0, 24);
-                if (header.indexOf('/9j/') === 0) {
-                    resultMimeType = 'image/jpeg';
-                } else if (header.indexOf('iVBORw0KGgo') === 0) {
-                    resultMimeType = 'image/png';
-                } else if (header.indexOf('UklGR') === 0) {
-                    resultMimeType = 'image/webp';
-                } else if (header.indexOf('R0lGOD') === 0) {
-                    resultMimeType = 'image/gif';
-                } else {
-                    resultMimeType = 'image/png'; // safe default
-                }
-            } else if (item.url) {
-                // The JSON gives us a URL — fetch it server-side and convert to base64
-                const imgResp = await fetchWithTimeout(item.url, {}, 120000);
-                if (!imgResp.ok) {
-                    throw new Error('Failed to fetch edited image from returned URL, status ' + imgResp.status);
-                }
-                const imgBuffer = await imgResp.buffer();
-                base64Image = imgBuffer.toString('base64');
-                resultMimeType = (imgResp.headers.get('content-type') || 'image/png').split(';')[0].trim() || 'image/png';
-            } else {
-                throw new Error('Pollinations image edit response had neither url nor b64_json');
-            }
-        } else {
-            // ---- Raw binary image data ----
-            // response.data is already a Buffer (responseType: 'arraybuffer') —
-            // do NOT re-encode through latin1, which corrupts binary data.
-            base64Image = rawResponseBuf.toString('base64');
-            resultMimeType = (contentTypeHeader || 'image/png').split(';')[0].trim() || 'image/png';
-        }
-
-        console.log('✅ Image edited successfully (' + resultMimeType + ')');
+        const dataUrl = await editImageWithKontext(imageBuffer, mimeType, prompt);
 
         return res.json({
             success: true,
             prompt: prompt.trim(),
-            image: `data:${resultMimeType};base64,${base64Image}`
+            image: dataUrl
         });
 
     } catch (error) {
@@ -1125,6 +1134,168 @@ app.post('/api/edit-image', async (req, res) => {
             error: 'Image editing failed',
             details: error.message
         });
+    }
+});
+
+// ============================================
+// SEARCH-AND-POLISH IMAGE GENERATION
+// ============================================
+// Finds a real photo via Serper's image search, fetches it server-side, and
+// runs it through the same Pollinations "kontext" editing pipeline to polish
+// it. This is an alternative to pure text-to-image generation.
+//
+// ⚠️ COPYRIGHT / ETHICAL NOTICE ⚠️
+// Images found via web search may be copyrighted and belong to their original
+// photographers/sites. This feature should ONLY be used for personal /
+// non-commercial purposes. Real people's photos found this way should NOT be
+// used without their consent, and especially NOT for any sexual or defamatory
+// editing. The frontend should disclose (via sourceNote) that the result is
+// based on a real photo, not pure AI generation.
+app.post('/api/generate-image-from-search', async (req, res) => {
+    const { prompt } = req.body;
+
+    // Validate prompt
+    if (!prompt || !prompt.trim()) {
+        return res.status(400).json({
+            success: false,
+            error: 'Prompt is required'
+        });
+    }
+
+    const userPrompt = prompt.trim();
+
+    // ---- Step 1: Search Serper for a real photo ----
+    let imageUrl = null;
+    try {
+        if (!process.env.SERPER_API_KEY) {
+            throw new Error('SERPER_API_KEY is not configured');
+        }
+
+        const searchResponse = await fetch('https://google.serper.dev/images', {
+            method: 'POST',
+            headers: {
+                'X-API-KEY': process.env.SERPER_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ q: userPrompt })
+        });
+
+        if (!searchResponse.ok) {
+            throw new Error('Serper image search failed with status ' + searchResponse.status);
+        }
+
+        const searchData = await searchResponse.json();
+        const results = searchData.images || [];
+
+        // Pick the first reasonably large result (prefer larger images for
+        // better enhancement quality). Serper returns imageSize like
+        // "LARGE"/"MEDIUM" and imageWidth/imageHeight.
+        const candidate = results.find(function(r) {
+            return r.imageUrl && (r.imageWidth || 0) >= 400 && (r.imageHeight || 0) >= 400;
+        }) || results.find(function(r) { return r.imageUrl; });
+
+        if (candidate && candidate.imageUrl) {
+            imageUrl = candidate.imageUrl;
+            console.log('🔍 Found real photo via Serper:', imageUrl);
+        } else {
+            console.log('🔍 Serper returned no usable image results for:', userPrompt);
+        }
+    } catch (err) {
+        console.error('🔍 Serper image search failed:', err.message);
+    }
+
+    // ---- Step 2: If no photo found, fall back to pure text-to-image ----
+    if (!imageUrl) {
+        console.log('🎨 Falling back to pure text-to-image generation for:', userPrompt);
+        try {
+            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
+            const image = await generateImageWithPollinations(enhancedPrompt);
+            return res.json({
+                success: true,
+                prompt: userPrompt,
+                image: `data:${image.mimeType};base64,${image.base64}`,
+                sourceNote: 'No real photo found — generated purely by AI'
+            });
+        } catch (fallbackErr) {
+            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Image generation failed',
+                details: fallbackErr.message
+            });
+        }
+    }
+
+    // ---- Step 3: Fetch the found photo server-side ----
+    let imageBuffer;
+    let fetchedMimeType = 'image/jpeg';
+    try {
+        const fetchResponse = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            maxContentLength: 10 * 1024 * 1024, // 10MB max
+            maxBodyLength: 10 * 1024 * 1024
+        });
+
+        imageBuffer = Buffer.from(fetchResponse.data);
+        const ct = String(fetchResponse.headers['content-type'] || '');
+        if (ct.indexOf('png') !== -1) fetchedMimeType = 'image/png';
+        else if (ct.indexOf('webp') !== -1) fetchedMimeType = 'image/webp';
+        else if (ct.indexOf('gif') !== -1) fetchedMimeType = 'image/gif';
+        else if (ct.indexOf('jpeg') !== -1 || ct.indexOf('jpg') !== -1) fetchedMimeType = 'image/jpeg';
+
+        console.log('📥 Fetched photo (' + fetchedMimeType + ', ' + imageBuffer.length + ' bytes)');
+    } catch (err) {
+        console.error('📥 Failed to fetch photo, falling back to text-to-image:', err.message);
+        try {
+            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
+            const image = await generateImageWithPollinations(enhancedPrompt);
+            return res.json({
+                success: true,
+                prompt: userPrompt,
+                image: `data:${image.mimeType};base64,${image.base64}`,
+                sourceNote: 'Photo fetch failed — generated purely by AI'
+            });
+        } catch (fallbackErr) {
+            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Image generation failed',
+                details: fallbackErr.message
+            });
+        }
+    }
+
+    // ---- Step 4: Polish the photo through the kontext pipeline ----
+    try {
+        const enhancementPrompt = 'enhance quality, sharp focus, high detail, professional photography';
+        const dataUrl = await editImageWithKontext(imageBuffer, fetchedMimeType, enhancementPrompt);
+
+        return res.json({
+            success: true,
+            prompt: userPrompt,
+            image: dataUrl,
+            sourceNote: 'Based on a real photo, enhanced by AI'
+        });
+    } catch (err) {
+        console.error('❌ Photo enhancement failed, falling back to text-to-image:', err.message);
+        try {
+            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
+            const image = await generateImageWithPollinations(enhancedPrompt);
+            return res.json({
+                success: true,
+                prompt: userPrompt,
+                image: `data:${image.mimeType};base64,${image.base64}`,
+                sourceNote: 'Photo enhancement failed — generated purely by AI'
+            });
+        } catch (fallbackErr) {
+            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Image generation failed',
+                details: fallbackErr.message
+            });
+        }
     }
 });
 
