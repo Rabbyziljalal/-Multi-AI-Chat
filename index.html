@@ -1033,245 +1033,6 @@
             animation: imageGenSpin 1s linear infinite;
             opacity: 0.7;
         }
-        /* Dropdown menu for combined image button */
-        .image-menu-wrapper {
-            position: relative;
-        }
-        .image-menu-dropdown {
-            position: absolute;
-            bottom: 46px;
-            right: 0;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 6px;
-            min-width: 190px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            display: none;
-            z-index: 500;
-        }
-        .image-menu-dropdown.open {
-            display: block;
-        }
-        .image-menu-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            padding: 10px 12px;
-            background: none;
-            border: none;
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.88rem;
-            font-family: inherit;
-            cursor: pointer;
-            text-align: left;
-            transition: background 0.15s;
-        }
-        .image-menu-item:hover {
-            background: var(--bg-hover);
-        }
-        .image-menu-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-        }
-        /* Generated image inside chat */
-        .generated-image {
-            display: block;
-            max-width: 100%;
-            height: auto;
-            border-radius: 12px;
-            margin-top: 10px;
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-        .input-hint {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 0.72rem;
-            color: var(--text-muted);
-        }
-        .chat-controls {
-            display: flex;
-            align-items: center;
-            max-width: 850px;
-            margin: 0 auto 10px;
-        }
-        #searchToggle {
-            padding: 8px 16px;
-            border: 2px solid var(--border-strong);
-            border-radius: 20px;
-            cursor: pointer;
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-family: inherit;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        #searchToggle:hover {
-            border-color: #4CAF50;
-            color: var(--text-primary);
-        }
-        #searchToggle.active {
-            background: #4CAF50;
-            border-color: #4CAF50;
-            color: white;
-        }
-        .search-results {
-            background: var(--bg-tertiary);
-            border-left: 4px solid #4CAF50;
-            padding: 12px 16px;
-            margin: 10px 0;
-            border-radius: 8px;
-            font-family: inherit;
-        }
-        .search-results h4 {
-            margin: 0 0 10px 0;
-            color: var(--success);
-            font-size: 14px;
-            font-weight: 600;
-        }
-        .search-result-item {
-            margin-bottom: 10px;
-            padding: 10px 12px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-        .search-result-item:last-child {
-            margin-bottom: 0;
-        }
-        .search-result-item a {
-            color: var(--cyan);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 14px;
-            display: block;
-        }
-        .search-result-item a:hover {
-            text-decoration: underline;
-        }
-        .search-result-item p {
-            margin: 6px 0 0 0;
-            color: var(--text-secondary);
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .message.system {
-            justify-content: center;
-        }
-        .message.system .message-content {
-            background: rgba(255,243,205,0.08);
-            border: 1px solid rgba(245,158,11,0.2);
-            color: var(--warning);
-            font-style: italic;
-            font-size: 13px;
-            text-align: center;
-            padding: 8px 18px;
-            border-radius: var(--radius-sm);
-        }
-        .message.system .message-avatar {
-            display: none;
-        }
-        .message.search {
-            margin: 10px auto;
-            max-width: 95%;
-            justify-content: center;
-        }
-        .message.search .message-content {
-            background: var(--bg-secondary);
-            border-left: 4px solid #4CAF50;
-            color: var(--text-primary);
-            border-radius: var(--radius-sm);
-            padding: 4px 16px;
-            width: 100%;
-        }
-        .message.search .message-avatar {
-            display: none;
-        }
-        /* -------- Settings modal (Claude-style) -------- */
-        .settings-modal-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 1000;
-        }
-        /* -------- Search-and-polish (real photo search) button -------- */
-        .img-search-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
-            border: none;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.05rem;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-        .img-search-btn:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
-        }
-        .img-search-btn:disabled {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        .img-search-btn.generating {
-            animation: imageGenSpin 1s linear infinite;
-            opacity: 0.7;
-        }
-        /* Dropdown menu for combined image button */
-        .image-menu-wrapper {
-            position: relative;
-        }
-        .image-menu-dropdown {
-            position: absolute;
-            bottom: 46px;
-            right: 0;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 6px;
-            min-width: 190px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            display: none;
-            z-index: 500;
-        }
-        .image-menu-dropdown.open {
-            display: block;
-        }
-        .image-menu-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            padding: 10px 12px;
-            background: none;
-            border: none;
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.88rem;
-            font-family: inherit;
-            cursor: pointer;
-            text-align: left;
-            transition: background 0.15s;
-        }
-        .image-menu-item:hover {
-            background: var(--bg-hover);
-        }
-        .image-menu-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-        }
         /* Generated image inside chat */
         .generated-image {
             display: block;
@@ -2364,19 +2125,24 @@
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI... (try /imagine a sunset)" rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
-                        <div class="image-menu-wrapper">
-                            <button class="img-gen-btn" id="imageMenuBtn" onclick="toggleImageMenu()" title="Image options" aria-label="Image options">
-                                🎨
-                            </button>
-                            <div class="image-menu-dropdown" id="imageMenuDropdown">
-                                <button class="image-menu-item" onclick="selectImageMenuOption('generate')">
-                                    <span class="image-menu-icon">✨</span> Generate Image
-                                </button>
-                                <button class="image-menu-item" onclick="selectImageMenuOption('search')">
-                                    <span class="image-menu-icon">🔍</span> Search Real Photo
-                                </button>
-                            </div>
-                        </div>
+                        <button
+                            class="img-gen-btn"
+                            id="imgGenBtn"
+                            onclick="generateImage()"
+                            title="Generate Image (pure AI)"
+                            aria-label="Generate Image (pure AI)"
+                        >
+                            🎨
+                        </button>
+                        <button
+                            class="img-search-btn"
+                            id="imgSearchBtn"
+                            onclick="generateImageFromSearch()"
+                            title="Search a real photo + enhance"
+                            aria-label="Search a real photo + enhance"
+                        >
+                            🔍
+                        </button>
                         <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
                             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
