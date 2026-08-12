@@ -977,6 +977,17 @@ app.post('/api/generate-image', async (req, res) => {
 // which accepts the image as a multipart file upload directly ("image=@file"),
 // rather than the URL-based endpoint that requires a publicly accessible image URL.
 app.post('/api/edit-image', async (req, res) => {
+    // The gen.pollinations.ai/v1/images/edits endpoint requires an API key via
+    // the Authorization header. Fail fast with a clear error if it's not
+    // configured, so misconfiguration is obvious in the logs rather than a
+    // generic 401 from the provider.
+    if (!process.env.POLLINATIONS_API_KEY) {
+        return res.status(500).json({
+            success: false,
+            error: 'POLLINATIONS_API_KEY is not configured on the server'
+        });
+    }
+
     const { image, mimeType, prompt } = req.body;
 
     // Validate inputs
@@ -1023,7 +1034,9 @@ app.post('/api/edit-image', async (req, res) => {
             'https://gen.pollinations.ai/v1/images/edits',
             form,
             {
-                headers: form.getHeaders(),
+                headers: Object.assign({}, form.getHeaders(), {
+                    'Authorization': 'Bearer ' + process.env.POLLINATIONS_API_KEY
+                }),
                 responseType: 'arraybuffer',
                 timeout: 120000
             }
