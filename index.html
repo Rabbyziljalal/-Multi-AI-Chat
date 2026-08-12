@@ -2830,7 +2830,7 @@
                 const dataUrl = 'data:' + generatedImage.mimeType + ';base64,' + generatedImage.base64;
                 const safeFilename = (generatedImage.prompt || 'generated-image').replace(/[^a-z0-9]/gi, '_').slice(0, 50) + '.jpg';
                 generatedImageHtml =
-                    '<img src="' + dataUrl + '" class="attached-image" alt="' + escapeHtml(generatedImage.prompt || '') + '" style="max-width:100%;"><br>' +
+                    '<img src="' + dataUrl + '" class="generated-image" alt="' + escapeHtml(generatedImage.prompt || '') + '" style="max-width:100%;"><br>' +
                     '<a href="' + dataUrl + '" download="' + safeFilename + '" class="image-download-btn">⬇️ Download</a>';
             }
 
