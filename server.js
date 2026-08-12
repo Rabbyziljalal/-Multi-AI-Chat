@@ -994,17 +994,28 @@ async function editImageWithKontext(imageBuffer, mimeType, prompt) {
 
     // Send to Pollinations' OpenAI-compatible image-edits endpoint.
     // Accepts the uploaded file directly via multipart — no public URL needed.
-    const response = await axios.post(
-        'https://gen.pollinations.ai/v1/images/edits',
-        form,
-        {
-            headers: Object.assign({}, form.getHeaders(), {
-                'Authorization': 'Bearer ' + process.env.POLLINATIONS_API_KEY
-            }),
-            responseType: 'arraybuffer',
-            timeout: 120000
+    let response;
+    try {
+        response = await axios.post(
+            'https://gen.pollinations.ai/v1/images/edits',
+            form,
+            {
+                headers: Object.assign({}, form.getHeaders(), {
+                    'Authorization': 'Bearer ' + process.env.POLLINATIONS_API_KEY
+                }),
+                responseType: 'arraybuffer',
+                timeout: 120000
+            }
+        );
+    } catch (err) {
+        // Pollinations returns 402 Payment Required when the account's Pollen
+        // credits are exhausted. Surface a clear, user-friendly message so the
+        // frontend can show it directly instead of a generic failure.
+        if (err.response && err.response.status === 402) {
+            throw new Error('POLLEN_CREDITS_EXHAUSTED');
         }
-    );
+        throw err;
+    }
 
     // ---- Determine the response format (JSON vs raw binary) ----
     // The OpenAI-compatible /v1/images/edits endpoint typically returns JSON
@@ -1129,6 +1140,17 @@ app.post('/api/edit-image', async (req, res) => {
     } catch (error) {
         console.error('❌ Image edit error:', error.message);
 
+        // Pollinations returned 402 (Pollen credits exhausted) — surface a clear,
+        // user-friendly message so the frontend can show it directly instead of a
+        // generic "Image editing failed". There is no free alternative for this
+        // feature (editing a user-uploaded photo requires the kontext model).
+        if (error.message === 'POLLEN_CREDITS_EXHAUSTED') {
+            return res.status(402).json({
+                success: false,
+                error: 'Image editing requires Pollinations credits (Pollen), which are currently exhausted. Please top up Pollen at enter.pollinations.ai, or try again later if free quota resets.'
+            });
+        }
+
         return res.status(500).json({
             success: false,
             error: 'Image editing failed',
@@ -1140,9 +1162,13 @@ app.post('/api/edit-image', async (req, res) => {
 // ============================================
 // SEARCH-AND-POLISH IMAGE GENERATION
 // ============================================
-// Finds a real photo via Serper's image search, fetches it server-side, and
-// runs it through the same Pollinations "kontext" editing pipeline to polish
-// it. This is an alternative to pure text-to-image generation.
+// Finds a real photo via Serper's image search and returns it directly.
+// NOTE: This route intentionally does NOT run the photo through the
+// Pollinations "kontext" pipeline — that costs Pollen credits, which we
+// avoid for this feature. It only uses Serper (SERPER_API_KEY) to find a
+// photo, fetches it, and returns it as a base64 data URL. If no suitable
+// photo can be found or fetched, it falls back to the free plain
+// text-to-image Pollinations flow (image.pollinations.ai, no key needed).
 //
 // ⚠️ COPYRIGHT / ETHICAL NOTICE ⚠️
 // Images found via web search may be copyrighted and belong to their original
@@ -1163,6 +1189,29 @@ app.post('/api/generate-image-from-search', async (req, res) => {
     }
 
     const userPrompt = prompt.trim();
+
+    // ---- Fallback: plain text-to-image (free, image.pollinations.ai, no key) ----
+    // Reused by all failure paths below: search fails, no results, or fetch fails.
+    async function fallbackToTextToImage(reasonNote) {
+        console.log('🎨 Falling back to pure text-to-image generation for:', userPrompt, '|', reasonNote);
+        try {
+            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
+            const image = await generateImageWithPollinations(enhancedPrompt);
+            return res.json({
+                success: true,
+                prompt: userPrompt,
+                image: `data:${image.mimeType};base64,${image.base64}`,
+                sourceNote: 'AI-generated (no matching real photo found)'
+            });
+        } catch (fallbackErr) {
+            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Image generation failed',
+                details: fallbackErr.message
+            });
+        }
+    }
 
     // ---- Step 1: Search Serper for a real photo ----
     let imageUrl = null;
@@ -1187,9 +1236,8 @@ app.post('/api/generate-image-from-search', async (req, res) => {
         const searchData = await searchResponse.json();
         const results = searchData.images || [];
 
-        // Pick the first reasonably large result (prefer larger images for
-        // better enhancement quality). Serper returns imageSize like
-        // "LARGE"/"MEDIUM" and imageWidth/imageHeight.
+        // Pick the first reasonably large result (prefer larger images).
+        // Serper returns imageSize like "LARGE"/"MEDIUM" and imageWidth/imageHeight.
         const candidate = results.find(function(r) {
             return r.imageUrl && (r.imageWidth || 0) >= 400 && (r.imageHeight || 0) >= 400;
         }) || results.find(function(r) { return r.imageUrl; });
@@ -1204,31 +1252,14 @@ app.post('/api/generate-image-from-search', async (req, res) => {
         console.error('🔍 Serper image search failed:', err.message);
     }
 
-    // ---- Step 2: If no photo found, fall back to pure text-to-image ----
+    // ---- Step 2: If no photo found, fall back to plain text-to-image ----
     if (!imageUrl) {
-        console.log('🎨 Falling back to pure text-to-image generation for:', userPrompt);
-        try {
-            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
-            const image = await generateImageWithPollinations(enhancedPrompt);
-            return res.json({
-                success: true,
-                prompt: userPrompt,
-                image: `data:${image.mimeType};base64,${image.base64}`,
-                sourceNote: 'No real photo found — generated purely by AI'
-            });
-        } catch (fallbackErr) {
-            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
-            return res.status(500).json({
-                success: false,
-                error: 'Image generation failed',
-                details: fallbackErr.message
-            });
-        }
+        return fallbackToTextToImage('no photo found');
     }
 
-    // ---- Step 3: Fetch the found photo server-side ----
-    let imageBuffer;
-    let fetchedMimeType = 'image/jpeg';
+    // ---- Step 3: Fetch the found photo server-side and return it directly ----
+    // No kontext/enhancement step — we return the real photo as-is to avoid
+    // spending Pollen credits on this feature.
     try {
         const fetchResponse = await axios.get(imageUrl, {
             responseType: 'arraybuffer',
@@ -1237,65 +1268,26 @@ app.post('/api/generate-image-from-search', async (req, res) => {
             maxBodyLength: 10 * 1024 * 1024
         });
 
-        imageBuffer = Buffer.from(fetchResponse.data);
+        const imageBuffer = Buffer.from(fetchResponse.data);
+        let fetchedMimeType = 'image/jpeg';
         const ct = String(fetchResponse.headers['content-type'] || '');
         if (ct.indexOf('png') !== -1) fetchedMimeType = 'image/png';
         else if (ct.indexOf('webp') !== -1) fetchedMimeType = 'image/webp';
         else if (ct.indexOf('gif') !== -1) fetchedMimeType = 'image/gif';
         else if (ct.indexOf('jpeg') !== -1 || ct.indexOf('jpg') !== -1) fetchedMimeType = 'image/jpeg';
 
-        console.log('📥 Fetched photo (' + fetchedMimeType + ', ' + imageBuffer.length + ' bytes)');
-    } catch (err) {
-        console.error('📥 Failed to fetch photo, falling back to text-to-image:', err.message);
-        try {
-            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
-            const image = await generateImageWithPollinations(enhancedPrompt);
-            return res.json({
-                success: true,
-                prompt: userPrompt,
-                image: `data:${image.mimeType};base64,${image.base64}`,
-                sourceNote: 'Photo fetch failed — generated purely by AI'
-            });
-        } catch (fallbackErr) {
-            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
-            return res.status(500).json({
-                success: false,
-                error: 'Image generation failed',
-                details: fallbackErr.message
-            });
-        }
-    }
-
-    // ---- Step 4: Polish the photo through the kontext pipeline ----
-    try {
-        const enhancementPrompt = 'enhance quality, sharp focus, high detail, professional photography';
-        const dataUrl = await editImageWithKontext(imageBuffer, fetchedMimeType, enhancementPrompt);
+        const base64Image = imageBuffer.toString('base64');
+        console.log('📥 Fetched real photo (' + fetchedMimeType + ', ' + imageBuffer.length + ' bytes) — returning directly');
 
         return res.json({
             success: true,
             prompt: userPrompt,
-            image: dataUrl,
-            sourceNote: 'Based on a real photo, enhanced by AI'
+            image: `data:${fetchedMimeType};base64,${base64Image}`,
+            sourceNote: 'Real photo from web search'
         });
     } catch (err) {
-        console.error('❌ Photo enhancement failed, falling back to text-to-image:', err.message);
-        try {
-            const enhancedPrompt = await enhanceImagePrompt(userPrompt);
-            const image = await generateImageWithPollinations(enhancedPrompt);
-            return res.json({
-                success: true,
-                prompt: userPrompt,
-                image: `data:${image.mimeType};base64,${image.base64}`,
-                sourceNote: 'Photo enhancement failed — generated purely by AI'
-            });
-        } catch (fallbackErr) {
-            console.error('❌ Fallback text-to-image failed:', fallbackErr.message);
-            return res.status(500).json({
-                success: false,
-                error: 'Image generation failed',
-                details: fallbackErr.message
-            });
-        }
+        console.error('📥 Failed to fetch photo, falling back to text-to-image:', err.message);
+        return fallbackToTextToImage('photo fetch failed (' + err.message + ')');
     }
 });
 
