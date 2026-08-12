@@ -3160,16 +3160,45 @@
             btn.classList.add('generating');
             btn.disabled = true;
 
-            // Add user's request to chat
-            const userLabel = isEditMode
-                ? '🎨 Edit Image: ' + escapeHtml(prompt)
-                : '🎨 Generate: ' + escapeHtml(prompt);
-            appendMessage('user', userLabel, null);
+            // 1. Create a new chat if none is active
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            const userContent = isEditMode
+                ? '🎨 Edit Image: ' + prompt
+                : '🎨 Generate: ' + prompt;
+
+            // 2. Create and push user message
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userContent,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            // 3. Update chat title if first message
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = '🎨 ' + prompt;
+                chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
+                renderChatList();
+            }
+
+            // 4. Render user message
+            appendMessage('user', userContent, null, true, userMsg);
 
             input.value = '';
             input.style.height = 'auto';
 
-            // Loading message
+            // 5. Save after user message
+            saveChats();
+
+            // 6. Loading message
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'message bot';
             loadingDiv.innerHTML = `
@@ -3216,26 +3245,32 @@
                     throw new Error(data.error || 'Image generation failed (' + response.status + ')');
                 }
 
-                // Generated image
-                const div = document.createElement('div');
-                div.className = 'message bot';
-                const safePrompt = escapeHtml(prompt);
+                // Parse the data URL to extract mime type and base64
+                const dataUrlMatch = data.image.match(/^data:([^;]+);base64,(.+)$/);
+                const mimeType = dataUrlMatch ? dataUrlMatch[1] : 'image/png';
+                const base64 = dataUrlMatch ? dataUrlMatch[2] : data.image;
 
-                div.innerHTML = `
-                    <div class="message-avatar">🎨</div>
-                    <div class="message-content-wrapper">
-                        <div class="message-content">
-                            <p>🎨 <strong>Generated Image</strong></p>
-                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">"${safePrompt}"</p>
-                            <img src="${data.image}" class="generated-image" alt="${safePrompt}" loading="lazy">
-                            <br>
-                            <a href="${data.image}" download="generated-image.png" style="color: var(--cyan); font-size: 0.85rem;">⬇️ Download Image</a>
-                        </div>
-                    </div>
-                `;
+                const botContent = '🎨 Generated Image: ' + prompt;
 
-                messagesContainer.appendChild(div);
-                scrollToBottom();
+                // 7. Create bot message with generatedImage
+                const botMsgData = {
+                    id: generateMessageId(),
+                    role: 'bot',
+                    content: botContent,
+                    generatedImage: {
+                        base64: base64,
+                        mimeType: mimeType,
+                        prompt: prompt
+                    },
+                    timestamp: Date.now()
+                };
+                chats[currentChatId].messages.push(botMsgData);
+
+                // 8. Render bot message using appendMessage with generatedImage
+                appendMessage('bot', botContent, null, true, botMsgData, botMsgData.generatedImage);
+
+                // 9. Save
+                saveChats();
                 showToast('✅ Image generated successfully!', 'success');
 
             } catch (err) {
@@ -3294,14 +3329,43 @@
             btn.classList.add('generating');
             btn.disabled = true;
 
-            // Add user's request to chat
-            const userLabel = '🔍 Search + Enhance: ' + escapeHtml(prompt);
-            appendMessage('user', userLabel, null);
+            // 1. Create a new chat if none is active
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            const userContent = '🔍 Search + Enhance: ' + prompt;
+
+            // 2. Create and push user message
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userContent,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            // 3. Update chat title if first message
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = '🔍 ' + prompt;
+                chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
+                renderChatList();
+            }
+
+            // 4. Render user message
+            appendMessage('user', userContent, null, true, userMsg);
 
             input.value = '';
             input.style.height = 'auto';
 
-            // Loading message
+            // 5. Save after user message
+            saveChats();
+
+            // 6. Loading message
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'message bot';
             loadingDiv.innerHTML = `
@@ -3338,28 +3402,33 @@
                     throw new Error(data.error || 'Image generation failed (' + response.status + ')');
                 }
 
-                // Generated image
-                const div = document.createElement('div');
-                div.className = 'message bot';
-                const safePrompt = escapeHtml(prompt);
-                const sourceNote = data.sourceNote ? escapeHtml(data.sourceNote) : '';
+                // Parse the data URL to extract mime type and base64
+                const dataUrlMatch = data.image.match(/^data:([^;]+);base64,(.+)$/);
+                const mimeType = dataUrlMatch ? dataUrlMatch[1] : 'image/jpeg';
+                const base64 = dataUrlMatch ? dataUrlMatch[2] : data.image;
 
-                div.innerHTML = `
-                    <div class="message-avatar">🔍</div>
-                    <div class="message-content-wrapper">
-                        <div class="message-content">
-                            <p>🔍 <strong>Search + Enhanced Image</strong></p>
-                            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px;">"${safePrompt}"</p>
-                            ${sourceNote ? '<p style="color: var(--warning); font-size: 0.8rem; margin-bottom: 8px;">' + sourceNote + '</p>' : ''}
-                            <img src="${data.image}" class="generated-image" alt="${safePrompt}" loading="lazy">
-                            <br>
-                            <a href="${data.image}" download="search-enhanced-image.png" style="color: var(--cyan); font-size: 0.85rem;">⬇️ Download Image</a>
-                        </div>
-                    </div>
-                `;
+                const sourceNote = data.sourceNote ? data.sourceNote : '';
+                const botContent = '🔍 Search + Enhanced Image: ' + prompt + (sourceNote ? '\n' + sourceNote : '');
 
-                messagesContainer.appendChild(div);
-                scrollToBottom();
+                // 7. Create bot message with generatedImage
+                const botMsgData = {
+                    id: generateMessageId(),
+                    role: 'bot',
+                    content: botContent,
+                    generatedImage: {
+                        base64: base64,
+                        mimeType: mimeType,
+                        prompt: prompt
+                    },
+                    timestamp: Date.now()
+                };
+                chats[currentChatId].messages.push(botMsgData);
+
+                // 8. Render bot message using appendMessage with generatedImage
+                appendMessage('bot', botContent, null, true, botMsgData, botMsgData.generatedImage);
+
+                // 9. Save
+                saveChats();
                 showToast('✅ Image ready!', 'success');
 
             } catch (err) {
