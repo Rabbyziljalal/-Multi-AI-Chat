@@ -1042,14 +1042,74 @@ app.post('/api/edit-image', async (req, res) => {
             }
         );
 
-        // Convert edited image to Base64
-        const base64Image = Buffer
-            .from(response.data, 'binary')
-            .toString('base64');
+        // ---- Determine the response format (JSON vs raw binary) ----
+        // The OpenAI-compatible /v1/images/edits endpoint typically returns JSON
+        // ({ "data": [ { "url": ... } ] } or { "data": [ { "b64_json": ... } ] }),
+        // NOT raw image bytes — so the old buffer-to-base64 logic could produce a
+        // corrupted file. Log what we actually got so it's visible in Render logs.
+        const contentTypeHeader = String(response.headers['content-type'] || '');
+        const rawResponseBuf = Buffer.isBuffer(response.data) ? response.data : Buffer.from(response.data);
+        const headSnippet = rawResponseBuf.toString('utf8', 0, 200);
+        console.log('Pollinations edit response content-type:', contentTypeHeader);
+        console.log('Pollinations edit response first 200 chars:', headSnippet);
 
-        const resultMimeType = 'image/png';
+        let base64Image;
+        let resultMimeType;
 
-        console.log('✅ Image edited successfully');
+        if (contentTypeHeader.indexOf('application/json') !== -1 || headSnippet.trim().startsWith('{')) {
+            // ---- OpenAI-style JSON response ----
+            let parsed;
+            try {
+                parsed = JSON.parse(rawResponseBuf.toString('utf8'));
+            } catch (err) {
+                throw new Error('Failed to parse JSON response from image-edits endpoint: ' + err.message);
+            }
+
+            const item = parsed && parsed.data && parsed.data[0];
+            if (!item) {
+                const errDetail = (parsed && parsed.error && (parsed.error.message || JSON.stringify(parsed.error))) || JSON.stringify(parsed);
+                throw new Error('Pollinations image edit returned no data: ' + errDetail);
+            }
+
+            if (item.b64_json) {
+                // Base64 image directly in the JSON response.
+                // OpenAI b64_json payloads are PNGs by default, but Pollinations may
+                // return JPEG or WebP — sniff the actual format from the magic bytes
+                // so the data:image/...;base64,... prefix matches the real content.
+                base64Image = item.b64_json.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
+                const header = base64Image.slice(0, 24);
+                if (header.indexOf('/9j/') === 0) {
+                    resultMimeType = 'image/jpeg';
+                } else if (header.indexOf('iVBORw0KGgo') === 0) {
+                    resultMimeType = 'image/png';
+                } else if (header.indexOf('UklGR') === 0) {
+                    resultMimeType = 'image/webp';
+                } else if (header.indexOf('R0lGOD') === 0) {
+                    resultMimeType = 'image/gif';
+                } else {
+                    resultMimeType = 'image/png'; // safe default
+                }
+            } else if (item.url) {
+                // The JSON gives us a URL — fetch it server-side and convert to base64
+                const imgResp = await fetchWithTimeout(item.url, {}, 120000);
+                if (!imgResp.ok) {
+                    throw new Error('Failed to fetch edited image from returned URL, status ' + imgResp.status);
+                }
+                const imgBuffer = await imgResp.buffer();
+                base64Image = imgBuffer.toString('base64');
+                resultMimeType = (imgResp.headers.get('content-type') || 'image/png').split(';')[0].trim() || 'image/png';
+            } else {
+                throw new Error('Pollinations image edit response had neither url nor b64_json');
+            }
+        } else {
+            // ---- Raw binary image data ----
+            // response.data is already a Buffer (responseType: 'arraybuffer') —
+            // do NOT re-encode through latin1, which corrupts binary data.
+            base64Image = rawResponseBuf.toString('base64');
+            resultMimeType = (contentTypeHeader || 'image/png').split(';')[0].trim() || 'image/png';
+        }
+
+        console.log('✅ Image edited successfully (' + resultMimeType + ')');
 
         return res.json({
             success: true,
