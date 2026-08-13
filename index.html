@@ -1573,6 +1573,18 @@
             --accent: #0066ff;
         }
 
+        /* Light Mode — clean white background with dark text */
+        body[data-theme="light"] {
+            --bg-main: #ffffff;
+            --bg-sidebar: #f7f7f7;
+            --bg-hover: rgba(0,0,0,0.05);
+            --bg-active: rgba(0,0,0,0.08);
+            --text-primary: #1a1a1a;
+            --text-secondary: #5a5a5a;
+            --border-subtle: rgba(0,0,0,0.1);
+            --accent: #0066ff;
+        }
+
         /* Theme toggle button + dropdown */
         .theme-switcher {
             position: relative;
@@ -1633,6 +1645,7 @@
         .theme-swatch.deepblue-swatch {
             background: linear-gradient(135deg, #0066ff, #4d3dff);
         }
+        .theme-swatch.light-swatch { background: #ffffff; border: 1px solid rgba(0,0,0,0.15); }
 
         /* -------- Pull-string lamp animation (alternate login trigger) -------- */
         .lamp-scene {
@@ -2042,6 +2055,10 @@
                     <div class="theme-option" data-theme="deepblue">
                         <span class="theme-swatch deepblue-swatch"></span>
                         Deep Blue
+                    </div>
+                    <div class="theme-option" data-theme="light">
+                        <span class="theme-swatch light-swatch"></span>
+                        Light Mode
                     </div>
                 </div>
             </div>
