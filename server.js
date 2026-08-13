@@ -597,6 +597,229 @@ app.post('/api/search-video', async (req, res) => {
 });
 
 // ============================================
+// GENERIC SERPER SEARCH HELPER
+// ============================================
+// All Serper endpoints (news, shopping, places, maps, scholar, reviews,
+// lens, webpage, autocomplete, patents) follow the exact same request
+// pattern: POST to https://google.serper.dev/<endpoint> with { q: query }.
+// This helper centralizes the fetch + error handling so each route below
+// stays tiny and consistent with the existing /api/search-video pattern.
+async function serperSearch(endpoint, query) {
+  if (!process.env.SERPER_API_KEY) {
+    throw new Error('SERPER_API_KEY is not configured');
+  }
+
+  const searchResponse = await fetch('https://google.serper.dev/' + endpoint, {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': process.env.SERPER_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ q: query.trim() })
+  });
+
+  if (!searchResponse.ok) {
+    throw new Error('Serper ' + endpoint + ' search failed with status ' + searchResponse.status);
+  }
+
+  return searchResponse.json();
+}
+
+// ---- Generic route factory: builds a /api/search-<endpoint> route that
+// calls serperSearch() and normalizes the response into { success, query, results }.
+// Each endpoint's raw Serper response shape differs, so a normalizer function
+// is passed in to map the raw data into a uniform array of result objects.
+function createSerperSearchRoute(endpoint, normalizer) {
+  return async (req, res) => {
+    const { query } = req.body;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({ success: false, error: 'Query is required' });
+    }
+
+    try {
+      const data = await serperSearch(endpoint, query.trim());
+      const results = normalizer(data);
+
+      res.json({ success: true, query: query.trim(), results });
+    } catch (error) {
+      console.error('Serper ' + endpoint + ' search error:', error.message);
+      res.status(500).json({ success: false, error: endpoint + ' search failed', details: error.message });
+    }
+  };
+}
+
+// ============================================
+// NEWS SEARCH API (Serper news endpoint)
+// ============================================
+app.post('/api/search-news', createSerperSearchRoute('news', function(data) {
+  return (data.news || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      snippet: item.snippet || '',
+      source: item.source || '',
+      date: item.date || '',
+      thumbnail: item.imageUrl || null
+    };
+  });
+}));
+
+// ============================================
+// SHOPPING SEARCH API (Serper shopping endpoint)
+// ============================================
+app.post('/api/search-shopping', createSerperSearchRoute('shopping', function(data) {
+  return (data.shopping || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      price: item.price || '',
+      source: item.source || '',
+      rating: item.rating || null,
+      ratingCount: item.ratingCount || null,
+      thumbnail: item.imageUrl || null
+    };
+  });
+}));
+
+// ============================================
+// PLACES SEARCH API (Serper places endpoint)
+// ============================================
+app.post('/api/search-places', createSerperSearchRoute('places', function(data) {
+  return (data.places || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.website || item.link || '#',
+      address: item.address || '',
+      rating: item.rating || null,
+      ratingCount: item.ratingCount || null,
+      phone: item.phone || '',
+      thumbnail: item.thumbnailUrl || null
+    };
+  });
+}));
+
+// ============================================
+// MAPS SEARCH API (Serper maps endpoint)
+// ============================================
+app.post('/api/search-maps', createSerperSearchRoute('maps', function(data) {
+  return (data.places || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.website || item.link || '#',
+      address: item.address || '',
+      rating: item.rating || null,
+      ratingCount: item.ratingCount || null,
+      phone: item.phone || '',
+      thumbnail: item.thumbnailUrl || null
+    };
+  });
+}));
+
+// ============================================
+// SCHOLAR SEARCH API (Serper scholar endpoint)
+// ============================================
+app.post('/api/search-scholar', createSerperSearchRoute('scholar', function(data) {
+  return (data.scholar || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      snippet: item.snippet || '',
+      publicationInfo: item.publicationInfo || '',
+      publicationDate: item.publicationDate || '',
+      authors: item.authors || '',
+      pdfUrl: item.pdfUrl || null
+    };
+  });
+}));
+
+// ============================================
+// REVIEWS SEARCH API (Serper reviews endpoint)
+// ============================================
+app.post('/api/search-reviews', createSerperSearchRoute('reviews', function(data) {
+  return (data.reviews || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      snippet: item.snippet || '',
+      rating: item.rating || null,
+      ratingCount: item.ratingCount || null,
+      source: item.source || '',
+      date: item.date || ''
+    };
+  });
+}));
+
+// ============================================
+// LENS SEARCH API (Serper lens endpoint — image search)
+// ============================================
+// Serper's lens endpoint accepts { q: "text query" } for text-based image
+// search (the same shape as all other Serper endpoints), or { imageUrl: "..." }
+// / { image: "base64..." } for image-based search. Since the slash command
+// takes a text query, we use the { q: query } form.
+app.post('/api/search-lens', createSerperSearchRoute('lens', function(data) {
+  return (data.images || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      snippet: item.snippet || '',
+      thumbnail: item.imageUrl || null,
+      source: item.source || ''
+    };
+  });
+}));
+
+// ============================================
+// WEBPAGE SEARCH API (Serper webpage endpoint)
+// ============================================
+// The webpage endpoint returns a SINGLE object (not an array), so we wrap
+// it in a one-element array to keep the frontend rendering uniform.
+app.post('/api/search-webpage', createSerperSearchRoute('webpage', function(data) {
+  if (!data || !data.title) return [];
+  return [{
+    title: data.title || 'Untitled',
+    link: data.link || '#',
+    snippet: data.description || '',
+    thumbnail: data.imageUrl || null,
+    source: data.siteName || ''
+  }];
+}));
+
+// ============================================
+// AUTOCOMPLETE SEARCH API (Serper autocomplete endpoint)
+// ============================================
+// The autocomplete endpoint returns { suggestions: ["...", "..."] } — a flat
+// list of strings. We map each suggestion to a result object so the frontend
+// can render them uniformly.
+app.post('/api/search-autocomplete', createSerperSearchRoute('autocomplete', function(data) {
+  return (data.suggestions || []).slice(0, 10).map(function(suggestion) {
+    return {
+      title: suggestion,
+      link: null,
+      snippet: ''
+    };
+  });
+}));
+
+// ============================================
+// PATENTS SEARCH API (Serper patents endpoint)
+// ============================================
+app.post('/api/search-patents', createSerperSearchRoute('patents', function(data) {
+  return (data.patents || []).slice(0, 5).map(function(item) {
+    return {
+      title: item.title || 'Untitled',
+      link: item.link || '#',
+      inventor: item.inventor || '',
+      filingDate: item.filingDate || '',
+      publicationDate: item.publicationDate || '',
+      assignee: item.assignee || '',
+      status: item.status || '',
+      snippet: item.snippet || ''
+    };
+  });
+}));
+
+// ============================================
 // MEMORY ROUTES: view / clear memory (auth required, per-user)
 // ============================================
 app.get('/api/memory', requireAuth, async (req, res) => {

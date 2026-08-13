@@ -1054,6 +1054,64 @@
             font-size: 0.72rem;
             color: var(--text-muted);
         }
+        /* ============================================
+           COMMAND PILLS (quick-action row above input)
+           ============================================ */
+        .command-pills {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 4px 2px 8px;
+            max-width: 850px;
+            margin: 0 auto 8px;
+            scrollbar-width: none; /* Firefox: hide scrollbar */
+            -ms-overflow-style: none; /* IE/Edge: hide scrollbar */
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .command-pills::-webkit-scrollbar {
+            display: none; /* Chrome/Safari: hide scrollbar */
+        }
+        .command-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .command-pill:hover {
+            background: var(--bg-hover);
+            border-color: rgba(0,212,255,0.25);
+            color: var(--text-primary);
+        }
+        .command-pill:active {
+            transform: scale(0.96);
+        }
+        .command-pill .pill-icon {
+            font-size: 0.85rem;
+            line-height: 1;
+        }
+        @media (max-width: 768px) {
+            .command-pills {
+                max-width: 100%;
+                padding: 4px 2px 8px;
+            }
+            .command-pill {
+                padding: 7px 13px;
+                font-size: 0.8rem;
+            }
+        }
         .chat-controls {
             display: flex;
             align-items: center;
@@ -2089,28 +2147,6 @@
                 </div>
                 <h1 id="welcomeHeading">Multi-AI Chatbot</h1>
                 <p class="subtitle">Chat with multiple AI models in one place. Upload images or PDFs to analyze with AI. All powered by your secure backend server.</p>
-                <div class="quick-actions">
-                    <div class="quick-action" onclick="sendQuick('Write a short poem about technology')">
-                        <div class="qa-icon">✍️</div>
-                        <div class="qa-text">Write a poem</div>
-                        <div class="qa-desc">Creative writing with AI</div>
-                    </div>
-                    <div class="quick-action" onclick="sendQuick('Write a simple JavaScript function')">
-                        <div class="qa-icon">💻</div>
-                        <div class="qa-text">Write code</div>
-                        <div class="qa-desc">Generate code snippets</div>
-                    </div>
-                    <div class="quick-action" onclick="sendQuick('Explain quantum computing simply')">
-                        <div class="qa-icon">📚</div>
-                        <div class="qa-text">Learn something</div>
-                        <div class="qa-desc">Simplified explanations</div>
-                    </div>
-                    <div class="quick-action" onclick="sendQuick('Give me 5 productivity tips')">
-                        <div class="qa-icon">⚡</div>
-                        <div class="qa-text">Get tips</div>
-                        <div class="qa-desc">Actionable advice</div>
-                    </div>
-                </div>
             </div>
             <div class="messages" id="messages" style="display:none;"></div>
         </div>
@@ -2124,30 +2160,27 @@
                     🌐 Web Search ON
                 </span>
             </div>
+            <div class="command-pills" id="commandPills">
+                <button class="command-pill" onclick="insertCommand('/imagine ')"><span class="pill-icon">🎨</span> Imagine</button>
+                <button class="command-pill" onclick="insertCommand('/photo ')"><span class="pill-icon">🔍</span> Real Photo</button>
+                <button class="command-pill" onclick="insertCommand('/video ')"><span class="pill-icon">📹</span> Video</button>
+                <button class="command-pill" onclick="insertCommand('/news ')"><span class="pill-icon">📰</span> News</button>
+                <button class="command-pill" onclick="insertCommand('/shopping ')"><span class="pill-icon">🛒</span> Shopping</button>
+                <button class="command-pill" onclick="insertCommand('/places ')"><span class="pill-icon">📍</span> Places</button>
+                <button class="command-pill" onclick="insertCommand('/maps ')"><span class="pill-icon">🗺️</span> Maps</button>
+                <button class="command-pill" onclick="insertCommand('/scholar ')"><span class="pill-icon">🎓</span> Scholar</button>
+                <button class="command-pill" onclick="insertCommand('/reviews ')"><span class="pill-icon">⭐</span> Reviews</button>
+                <button class="command-pill" onclick="insertCommand('/lens ')"><span class="pill-icon">🔎</span> Lens</button>
+                <button class="command-pill" onclick="insertCommand('/webpage ')"><span class="pill-icon">🌐</span> Webpage</button>
+                <button class="command-pill" onclick="insertCommand('/autocomplete ')"><span class="pill-icon">✏️</span> Autocomplete</button>
+                <button class="command-pill" onclick="insertCommand('/patents ')"><span class="pill-icon">📄</span> Patents</button>
+            </div>
             <div class="input-wrapper">
                 <div class="attachment-preview" id="attachmentPreview"></div>
                 <div class="input-row">
                     <button class="attach-btn" onclick="triggerFileUpload()" title="Attach image or PDF">📎</button>
                     <textarea id="userInput" placeholder="Message Multi-AI... (try /imagine a sunset)" rows="1" onkeydown="handleKeydown(event)" oninput="autoResize(this)"></textarea>
                     <div class="input-actions">
-                        <button
-                            class="img-gen-btn"
-                            id="imgGenBtn"
-                            onclick="generateImage()"
-                            title="Generate Image (pure AI)"
-                            aria-label="Generate Image (pure AI)"
-                        >
-                            🎨
-                        </button>
-                        <button
-                            class="img-search-btn"
-                            id="imgSearchBtn"
-                            onclick="generateImageFromSearch()"
-                            title="Search a real photo + enhance"
-                            aria-label="Search a real photo + enhance"
-                        >
-                            🔍
-                        </button>
                         <button class="send-btn" id="sendBtn" onclick="handleSendButtonClick()">
                             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -3084,6 +3117,18 @@ async function loadChats() {
             sendMessage();
         }
 
+        // ---- Command pill click: insert the command prefix into the input box ----
+        // Sets the textarea value to the command prefix (e.g. "/video "), focuses
+        // the textarea, and places the cursor at the end — ready for the user to
+        // type their query. Does NOT auto-send.
+        function insertCommand(prefix) {
+            const input = document.getElementById('userInput');
+            input.value = prefix;
+            input.focus();
+            input.setSelectionRange(prefix.length, prefix.length);
+            autoResize(input);
+        }
+
         // ---- Stable, unique ID generator — call ONCE per message at creation time ----
         function generateMessageId() {
             return 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
@@ -3132,6 +3177,41 @@ async function loadChats() {
                     input.style.height = 'auto';
                 }
                 await handleVideoCommand(videoQuery);
+                return; // skip the normal chat send flow entirely
+            }
+
+            // NEW: handle /photo command — searches for a real photo via Serper
+            if (text.toLowerCase().startsWith('/photo ')) {
+                const photoQuery = text.slice('/photo '.length).trim();
+                if (!photoQuery) {
+                    showToast('Please provide a description after /photo', 'error');
+                    return;
+                }
+                if (overrideText === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+                // Reuse the existing search-and-polish image flow
+                document.getElementById('userInput').value = photoQuery;
+                await generateImageFromSearch();
+                return; // skip the normal chat send flow entirely
+            }
+
+            // NEW: handle all generic Serper search commands (/news, /shopping, /places,
+            // /maps, /scholar, /reviews, /lens, /webpage, /autocomplete, /patents)
+            const serperCommandMatch = text.toLowerCase().match(/^\/(news|shopping|places|maps|scholar|reviews|lens|webpage|autocomplete|patents)\s+(.+)$/);
+            if (serperCommandMatch) {
+                const command = serperCommandMatch[1];
+                const query = serperCommandMatch[2].trim();
+                if (!query) {
+                    showToast('Please provide a query after /' + command, 'error');
+                    return;
+                }
+                if (overrideText === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+                await handleSerperCommand(command, query);
                 return; // skip the normal chat send flow entirely
             }
 
@@ -3228,10 +3308,9 @@ async function loadChats() {
         // ============================================
         async function generateImage() {
             const input = document.getElementById('userInput');
-            const btn = document.getElementById('imgGenBtn');
             const messagesContainer = document.getElementById('messages');
 
-            if (!input || !btn || !messagesContainer) {
+            if (!input || !messagesContainer) {
                 console.error('Image generation UI elements not found');
                 return;
             }
@@ -3245,7 +3324,7 @@ async function loadChats() {
             }
 
             // Prevent multiple requests
-            if (btn.disabled) {
+            if (isGenerating) {
                 return;
             }
 
@@ -3255,8 +3334,8 @@ async function loadChats() {
             const hasAttachedImage = currentAttachment && currentAttachment.type === 'image';
             const isEditMode = hasAttachedImage;
 
-            btn.classList.add('generating');
-            btn.disabled = true;
+            // Prevent double-click while generating
+            isGenerating = true;
 
             // 1. Create a new chat if none is active
             if (!currentChatId || !chats[currentChatId]) {
@@ -3388,8 +3467,7 @@ async function loadChats() {
                 }
 
             } finally {
-                btn.classList.remove('generating');
-                btn.disabled = false;
+                isGenerating = false;
             }
         }
 
@@ -3403,10 +3481,9 @@ async function loadChats() {
         // backend comment; this is for personal/non-commercial use only).
         async function generateImageFromSearch() {
             const input = document.getElementById('userInput');
-            const btn = document.getElementById('imgSearchBtn');
             const messagesContainer = document.getElementById('messages');
 
-            if (!input || !btn || !messagesContainer) {
+            if (!input || !messagesContainer) {
                 console.error('Search-image UI elements not found');
                 return;
             }
@@ -3420,12 +3497,11 @@ async function loadChats() {
             }
 
             // Prevent multiple requests
-            if (btn.disabled) {
+            if (isGenerating) {
                 return;
             }
 
-            btn.classList.add('generating');
-            btn.disabled = true;
+            isGenerating = true;
 
             // 1. Create a new chat if none is active
             if (!currentChatId || !chats[currentChatId]) {
@@ -3539,8 +3615,7 @@ async function loadChats() {
                 showToast('❌ ' + err.message, 'error');
 
             } finally {
-                btn.classList.remove('generating');
-                btn.disabled = false;
+                isGenerating = false;
             }
         }
 
@@ -3628,6 +3703,143 @@ async function loadChats() {
             } catch (err) {
                 contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
                 showToast('Video search error: ' + err.message, 'error');
+            } finally {
+                scrollToBottom();
+            }
+        }
+
+        // ---- Generic Serper search command handler ----
+        // Handles /news, /shopping, /places, /maps, /scholar, /reviews, /lens,
+        // /webpage, /autocomplete, /patents — all of which follow the exact same
+        // pattern: POST to /api/search-<endpoint> with { query }, then render
+        // results using the search-results visual style.
+        async function handleSerperCommand(command, query) {
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            // Map command name to endpoint + display metadata
+            const commandMap = {
+                news:      { endpoint: 'news',      icon: '📰', label: 'News' },
+                shopping:  { endpoint: 'shopping',  icon: '🛒', label: 'Shopping' },
+                places:    { endpoint: 'places',    icon: '📍', label: 'Places' },
+                maps:      { endpoint: 'maps',      icon: '🗺️', label: 'Maps' },
+                scholar:   { endpoint: 'scholar',   icon: '🎓', label: 'Scholar' },
+                reviews:   { endpoint: 'reviews',   icon: '⭐', label: 'Reviews' },
+                lens:      { endpoint: 'lens',      icon: '🔎', label: 'Lens' },
+                webpage:   { endpoint: 'webpage',   icon: '🌐', label: 'Webpage' },
+                autocomplete: { endpoint: 'autocomplete', icon: '✏️', label: 'Autocomplete' },
+                patents:   { endpoint: 'patents',   icon: '📄', label: 'Patents' }
+            };
+
+            const meta = commandMap[command];
+            if (!meta) return;
+
+            // Show the user's command request as a normal user message bubble
+            const userDisplayText = meta.icon + ' /' + command + ' ' + query;
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userDisplayText,
+                attachment: null,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = meta.icon + ' ' + query;
+                chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
+                renderChatList();
+            }
+
+            appendMessage('user', userDisplayText, null, true, userMsg);
+            saveChats();
+
+            // Show a loading placeholder while results load
+            const botMsg = appendMessage('bot', '', null);
+            const contentDiv = botMsg.querySelector('.message-content');
+            contentDiv.innerHTML = '<span style="color:var(--text-secondary)"><span class="chat-loading-spinner"></span> Searching ' + meta.label.toLowerCase() + '...</span>';
+
+            try {
+                const response = await fetchWithTimeout(backendUrl + '/api/search-' + meta.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                }, 20000);
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || meta.label + ' search failed');
+                }
+
+                const results = data.results || [];
+                if (results.length === 0) {
+                    contentDiv.innerHTML = '<span style="color:var(--text-secondary)">No ' + meta.label.toLowerCase() + ' results found for "' + escapeHtml(query) + '". Try a different search.</span>';
+                } else {
+                    // Render results using the search-results visual style
+                    let html = '<div class="search-results">';
+                    html += '<h4>' + meta.icon + ' ' + meta.label + ' Results for "' + escapeHtml(query) + '":</h4>';
+
+                    results.forEach(function(item, index) {
+                        html += '<div class="search-result-item">';
+                        if (item.thumbnail) {
+                            html += '<img src="' + escapeHtml(item.thumbnail) + '" alt="Thumbnail" style="width:80px; height:auto; border-radius:6px; float:right; margin-left:10px;">';
+                        }
+                        if (item.link) {
+                            html += '<a href="' + escapeHtml(item.link) + '" target="_blank">' + (index + 1) + '. ' + escapeHtml(item.title) + '</a>';
+                        } else {
+                            html += '<strong>' + (index + 1) + '. ' + escapeHtml(item.title) + '</strong>';
+                        }
+
+                        // Build detail lines based on what fields are available
+                        const detailLines = [];
+                        if (item.snippet) detailLines.push(item.snippet);
+                        if (item.source) detailLines.push('Source: ' + item.source);
+                        if (item.date) detailLines.push('Date: ' + item.date);
+                        if (item.price) detailLines.push('Price: ' + item.price);
+                        if (item.address) detailLines.push('Address: ' + item.address);
+                        if (item.rating) detailLines.push('Rating: ' + item.rating + (item.ratingCount ? ' (' + item.ratingCount + ' reviews)' : ''));
+                        if (item.phone) detailLines.push('Phone: ' + item.phone);
+                        if (item.channel) detailLines.push(item.channel);
+                        if (item.inventor) detailLines.push('Inventor: ' + item.inventor);
+                        if (item.filingDate) detailLines.push('Filing date: ' + item.filingDate);
+                        if (item.publicationDate) detailLines.push('Published: ' + item.publicationDate);
+                        if (item.assignee) detailLines.push('Assignee: ' + item.assignee);
+                        if (item.status) detailLines.push('Status: ' + item.status);
+                        if (item.authors) detailLines.push('Authors: ' + item.authors);
+                        if (item.publicationInfo) detailLines.push(item.publicationInfo);
+
+                        if (detailLines.length > 0) {
+                            html += '<p>' + detailLines.map(function(l) { return escapeHtml(l); }).join('<br>') + '</p>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+
+                    // Build the persisted message content as plain text (for history)
+                    const persistedText = results.map(function(item, i) {
+                        const parts = [item.title];
+                        if (item.snippet) parts.push(item.snippet);
+                        if (item.link) parts.push(item.link);
+                        return (i + 1) + '. ' + parts.join(' — ');
+                    }).join('\n');
+
+                    contentDiv.innerHTML = html;
+
+                    // Save this as an assistant message so results survive page refresh
+                    chats[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: meta.icon + ' ' + meta.label + ' results for "' + query + '":\n' + persistedText
+                    });
+                    saveChats();
+                }
+            } catch (err) {
+                contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                showToast(meta.label + ' search error: ' + err.message, 'error');
             } finally {
                 scrollToBottom();
             }
