@@ -838,13 +838,28 @@ app.post('/api/search-lens', async (req, res) => {
     }
 
     const data = await searchResponse.json();
-    const results = (data.images || []).slice(0, 5).map(function(item) {
+    console.log('RAW Serper lens response:', JSON.stringify(data, null, 2)); // TEMPORARY — remove after confirming the correct field
+
+    // Defensive extraction: try the most likely field names in order,
+    // use whichever one actually has data.
+    function extractLensMatches(results) {
+      const candidates = ['organic', 'images', 'visualMatches', 'items', 'results'];
+      for (const field of candidates) {
+        if (Array.isArray(results[field]) && results[field].length > 0) {
+          return results[field];
+        }
+      }
+      return [];
+    }
+
+    const matches = extractLensMatches(data);
+    const results = matches.slice(0, 5).map(function(item) {
       return {
         title: item.title || 'Untitled',
         link: item.link || '#',
-        snippet: item.snippet || '',
-        thumbnail: item.imageUrl || null,
-        source: item.source || ''
+        snippet: item.snippet || item.description || '',
+        thumbnail: item.imageUrl || item.thumbnailUrl || null,
+        source: item.source || item.siteName || ''
       };
     });
 
