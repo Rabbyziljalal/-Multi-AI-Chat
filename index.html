@@ -3930,7 +3930,7 @@ async function loadChats() {
                 const response = await fetchWithTimeout(backendUrl + '/api/search-lens', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query || '', image: attachment.data })
+                    body: JSON.stringify({ query: query || '', image: attachment.data, mimeType: attachment.mimeType })
                 }, 20000);
 
                 const data = await response.json();

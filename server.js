@@ -753,12 +753,42 @@ app.post('/api/search-reviews', createSerperSearchRoute('reviews', function(data
 // ============================================
 // LENS SEARCH API (Serper lens endpoint — image search)
 // ============================================
-// Serper's lens endpoint accepts:
-//   { q: "text query" }        — text-based image search
-//   { imageUrl: "..." }        — search by a publicly accessible image URL
-//   { image: "base64..." }     — search by a base64-encoded image
-// The frontend sends the attached image as base64 when the user types /lens
-// with an image attached, or falls back to a text query if no image is present.
+// Serper's lens endpoint requires a PUBLICLY ACCESSIBLE image URL — it does
+// NOT accept raw base64 image data (that causes a 400 error). So before
+// calling Serper, we first upload the attached image to catbox.moe (free,
+// no API key) to get a public URL, then pass that URL to Serper.
+//
+// Note: uploaded images on catbox.moe are public (anyone with the URL can
+// view them) and persist indefinitely unless manually deleted.
+async function uploadImageForLensSearch(base64Data, mimeType) {
+  const buffer = Buffer.from(base64Data, 'base64');
+  const extension = mimeType && mimeType.indexOf('png') !== -1 ? 'png' : 'jpg';
+
+  const form = new FormData();
+  form.append('reqtype', 'fileupload');
+  form.append('fileToUpload', buffer, {
+    filename: 'lens-search.' + extension,
+    contentType: mimeType || 'image/jpeg'
+  });
+
+  const response = await fetch('https://catbox.moe/user/api.php', {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image for lens search (status ' + response.status + ')');
+  }
+
+  const publicUrl = (await response.text()).trim();
+  if (!publicUrl.startsWith('http')) {
+    throw new Error('Image upload did not return a valid URL: ' + publicUrl);
+  }
+
+  return publicUrl;
+}
+
 app.post('/api/search-lens', async (req, res) => {
   const { query, image, imageUrl } = req.body;
 
@@ -776,11 +806,18 @@ app.post('/api/search-lens', async (req, res) => {
     if (image) {
       // Strip any data:image/...;base64, prefix if present (defensive)
       const commaIndex = image.indexOf(',');
-      body.image = image.startsWith('data:') && commaIndex !== -1
+      const cleanBase64 = image.startsWith('data:') && commaIndex !== -1
         ? image.slice(commaIndex + 1)
         : image;
+
+      // Step 1: upload the image to catbox.moe to get a public URL
+      const publicImageUrl = await uploadImageForLensSearch(cleanBase64, req.body.mimeType);
+      console.log('Lens search — uploaded image to:', publicImageUrl);
+
+      // Step 2: call Serper's Lens endpoint with that public URL
+      body.url = publicImageUrl;
     } else if (imageUrl) {
-      body.imageUrl = imageUrl;
+      body.url = imageUrl;
     } else {
       body.q = query.trim();
     }
@@ -795,6 +832,8 @@ app.post('/api/search-lens', async (req, res) => {
     });
 
     if (!searchResponse.ok) {
+      const errText = await searchResponse.text();
+      console.error('Serper lens search error:', searchResponse.status, errText);
       throw new Error('Serper lens search failed with status ' + searchResponse.status);
     }
 
