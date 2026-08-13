@@ -545,6 +545,58 @@ app.get('/api/search', async (req, res) => {
 });
 
 // ============================================
+// VIDEO SEARCH API (Serper video search endpoint)
+// ============================================
+// Searches for YouTube videos via Serper's dedicated video search endpoint.
+// Returns top 3-5 results with title, link, channel/source, and thumbnail.
+app.post('/api/search-video', async (req, res) => {
+  const { query } = req.body;
+
+  if (!query || !query.trim()) {
+    return res.status(400).json({ success: false, error: 'Query is required' });
+  }
+
+  try {
+    if (!process.env.SERPER_API_KEY) {
+      throw new Error('SERPER_API_KEY is not configured');
+    }
+
+    const searchResponse = await fetch('https://google.serper.dev/videos', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': process.env.SERPER_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ q: query.trim() })
+    });
+
+    if (!searchResponse.ok) {
+      throw new Error('Serper video search failed with status ' + searchResponse.status);
+    }
+
+    const data = await searchResponse.json();
+    const videos = (data.videos || []).slice(0, 5);
+
+    if (videos.length === 0) {
+      return res.json({ success: true, query: query.trim(), results: [] });
+    }
+
+    const results = videos.map(v => ({
+      title: v.title || 'Untitled video',
+      link: v.link || '#',
+      channel: v.channel || v.source || 'Unknown channel',
+      thumbnail: v.imageUrl || v.thumbnailUrl || null
+    }));
+
+    res.json({ success: true, query: query.trim(), results });
+
+  } catch (error) {
+    console.error('Video search error:', error.message);
+    res.status(500).json({ success: false, error: 'Video search failed', details: error.message });
+  }
+});
+
+// ============================================
 // MEMORY ROUTES: view / clear memory (auth required, per-user)
 // ============================================
 app.get('/api/memory', requireAuth, async (req, res) => {

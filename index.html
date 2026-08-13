@@ -3120,6 +3120,21 @@ async function loadChats() {
                 return; // skip the normal chat send flow entirely
             }
 
+            // NEW: handle /video command separately from normal chat
+            if (text.toLowerCase().startsWith('/video ')) {
+                const videoQuery = text.slice('/video '.length).trim();
+                if (!videoQuery) {
+                    showToast('Please provide a topic or song after /video', 'error');
+                    return;
+                }
+                if (overrideText === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+                await handleVideoCommand(videoQuery);
+                return; // skip the normal chat send flow entirely
+            }
+
             // Create a new chat if none is active (e.g. after page load with welcome screen)
             if (!currentChatId || !chats[currentChatId]) {
                 const id = 'chat_' + Date.now();
@@ -3526,6 +3541,95 @@ async function loadChats() {
             } finally {
                 btn.classList.remove('generating');
                 btn.disabled = false;
+            }
+        }
+
+        // ---- /video command: search for YouTube videos via Serper ----
+        // Handles ANY kind of video search — songs, topics, tutorials, trailers,
+        // sports highlights, whatever the user types after "/video ".
+        async function handleVideoCommand(query) {
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            // Show the user's /video request as a normal user message bubble
+            const userDisplayText = '🎥 /video ' + query;
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userDisplayText,
+                attachment: null,
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = '🎥 ' + query;
+                chats[currentChatId].title = titleText.slice(0, 30) + (titleText.length > 30 ? '...' : '');
+                renderChatList();
+            }
+
+            appendMessage('user', userDisplayText, null, true, userMsg);
+            saveChats();
+
+            // Show a loading placeholder while videos load
+            const botMsg = appendMessage('bot', '', null);
+            const contentDiv = botMsg.querySelector('.message-content');
+            contentDiv.innerHTML = '<span style="color:var(--text-secondary)"><span class="chat-loading-spinner"></span> Searching videos...</span>';
+
+            try {
+                const response = await fetchWithTimeout(backendUrl + '/api/search-video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                }, 20000);
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Video search failed');
+                }
+
+                const results = data.results || [];
+                if (results.length === 0) {
+                    contentDiv.innerHTML = '<span style="color:var(--text-secondary)">No videos found for "' + escapeHtml(query) + '". Try a different search.</span>';
+                } else {
+                    // Render video results using the search-results visual style
+                    let html = '<div class="search-results">';
+                    html += '<h4>🎥 Video Results for "' + escapeHtml(query) + '":</h4>';
+                    results.forEach(function(video, index) {
+                        html += '<div class="search-result-item">';
+                        if (video.thumbnail) {
+                            html += '<img src="' + escapeHtml(video.thumbnail) + '" alt="Thumbnail" style="width:120px; height:auto; border-radius:6px; float:right; margin-left:10px;">';
+                        }
+                        html += '<a href="' + escapeHtml(video.link) + '" target="_blank">' + (index + 1) + '. ' + escapeHtml(video.title) + '</a>';
+                        html += '<p>' + escapeHtml(video.channel) + '</p>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+
+                    // Build the persisted message content as plain text (for history)
+                    const persistedText = results.map(function(v, i) {
+                        return (i + 1) + '. ' + v.title + ' — ' + v.channel + ' (' + v.link + ')';
+                    }).join('\n');
+
+                    contentDiv.innerHTML = html;
+
+                    // Save this as an assistant message so video results survive page refresh
+                    chats[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: '🎥 Video results for "' + query + '":\n' + persistedText
+                    });
+                    saveChats();
+                }
+            } catch (err) {
+                contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                showToast('Video search error: ' + err.message, 'error');
+            } finally {
+                scrollToBottom();
             }
         }
 
