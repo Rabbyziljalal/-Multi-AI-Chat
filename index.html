@@ -3238,6 +3238,10 @@ async function loadChats() {
 
             // NEW: handle all generic Serper search commands (/news, /shopping, /places,
             // /maps, /scholar, /reviews, /webpage, /autocomplete, /patents)
+            // Important: only match if the command prefix is at the START of the text
+            // and not already handled by a previous command check above. This prevents
+            // duplicate /webpage /webpage prefixes that could occur if the pill was
+            // clicked AND the user also typed /webpage manually.
             const serperCommandMatch = text.toLowerCase().match(/^\/(news|shopping|places|maps|scholar|reviews|webpage|autocomplete|patents)\s+(.+)$/);
             if (serperCommandMatch) {
                 const command = serperCommandMatch[1];
