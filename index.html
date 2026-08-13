@@ -4614,11 +4614,14 @@ async function loadChats() {
             const toggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileMenuBtn = document.getElementById('mobileMenuBtn');
             const sidebarBackdrop = document.getElementById('sidebarBackdrop');
-            let collapsed = false;
+            // Restore sidebar state from localStorage (default: open on first visit)
+            let collapsed = localStorage.getItem('sidebarOpen') === 'false';
+            if (collapsed) sidebar.classList.add('collapsed');
 
             toggleBtn.addEventListener('click', function() {
                 collapsed = !collapsed;
                 sidebar.classList.toggle('collapsed', collapsed);
+                localStorage.setItem('sidebarOpen', collapsed ? 'false' : 'true');
             });
 
             // --- Mobile: off-canvas drawer open/close ---
