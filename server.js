@@ -1213,8 +1213,24 @@ app.post('/api/generate-image-from-search', async (req, res) => {
         }
     }
 
-    // ---- Step 1: Search Serper for a real photo ----
-    let imageUrl = null;
+    // ---- Browser-like headers for fetching images ----
+    // Some sites (e.g. Wikipedia) block requests with no User-Agent at all.
+    // A realistic browser UA + Referer dramatically improves fetch success rate.
+    const BROWSER_HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.google.com/',
+        'Cache-Control': 'no-cache'
+    };
+
+    // ---- Step 1: Search Serper for real photos ----
+    // Exclude known-blocking domains from the query so Serper doesn't waste
+    // results on sites that will 403/429 our server-side fetch anyway.
+    const BLOCKED_SITES = ' -site:instagram.com -site:facebook.com -site:pinterest.com -site:tiktok.com';
+    const searchQuery = userPrompt + BLOCKED_SITES;
+
+    let candidateUrls = [];
     try {
         if (!process.env.SERPER_API_KEY) {
             throw new Error('SERPER_API_KEY is not configured');
@@ -1226,7 +1242,10 @@ app.post('/api/generate-image-from-search', async (req, res) => {
                 'X-API-KEY': process.env.SERPER_API_KEY,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ q: userPrompt })
+            body: JSON.stringify({
+                q: searchQuery,
+                num: 10  // request more results so we have candidates to try in order
+            })
         });
 
         if (!searchResponse.ok) {
@@ -1236,15 +1255,19 @@ app.post('/api/generate-image-from-search', async (req, res) => {
         const searchData = await searchResponse.json();
         const results = searchData.images || [];
 
-        // Pick the first reasonably large result (prefer larger images).
-        // Serper returns imageSize like "LARGE"/"MEDIUM" and imageWidth/imageHeight.
-        const candidate = results.find(function(r) {
+        // Collect ALL candidate URLs (prefer larger images first, but keep every
+        // result with a URL so we can loop through them until one fetches).
+        const largeCandidates = results.filter(function(r) {
             return r.imageUrl && (r.imageWidth || 0) >= 400 && (r.imageHeight || 0) >= 400;
-        }) || results.find(function(r) { return r.imageUrl; });
+        });
+        const anyCandidates = results.filter(function(r) { return r.imageUrl; });
 
-        if (candidate && candidate.imageUrl) {
-            imageUrl = candidate.imageUrl;
-            console.log('🔍 Found real photo via Serper:', imageUrl);
+        candidateUrls = (largeCandidates.length > 0 ? largeCandidates : anyCandidates)
+            .map(function(r) { return r.imageUrl; })
+            .slice(0, 10); // cap at 10 attempts max
+
+        if (candidateUrls.length > 0) {
+            console.log('🔍 Found ' + candidateUrls.length + ' candidate photo(s) via Serper for:', userPrompt);
         } else {
             console.log('🔍 Serper returned no usable image results for:', userPrompt);
         }
@@ -1253,42 +1276,71 @@ app.post('/api/generate-image-from-search', async (req, res) => {
     }
 
     // ---- Step 2: If no photo found, fall back to plain text-to-image ----
-    if (!imageUrl) {
+    if (candidateUrls.length === 0) {
         return fallbackToTextToImage('no photo found');
     }
 
-    // ---- Step 3: Fetch the found photo server-side and return it directly ----
-    // No kontext/enhancement step — we return the real photo as-is to avoid
-    // spending Pollen credits on this feature.
-    try {
-        const fetchResponse = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 30000,
-            maxContentLength: 10 * 1024 * 1024, // 10MB max
-            maxBodyLength: 10 * 1024 * 1024
-        });
+    // ---- Step 3: Try fetching each candidate in order, use the first that succeeds ----
+    // Each attempt gets a short 8-second timeout so a slow/blocked source doesn't
+    // stall the whole request — we move to the next candidate quickly.
+    const MAX_ATTEMPT_TIMEOUT = 8000; // 8 seconds per candidate
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB max
 
-        const imageBuffer = Buffer.from(fetchResponse.data);
-        let fetchedMimeType = 'image/jpeg';
-        const ct = String(fetchResponse.headers['content-type'] || '');
-        if (ct.indexOf('png') !== -1) fetchedMimeType = 'image/png';
-        else if (ct.indexOf('webp') !== -1) fetchedMimeType = 'image/webp';
-        else if (ct.indexOf('gif') !== -1) fetchedMimeType = 'image/gif';
-        else if (ct.indexOf('jpeg') !== -1 || ct.indexOf('jpg') !== -1) fetchedMimeType = 'image/jpeg';
+    for (let i = 0; i < candidateUrls.length; i++) {
+        const imageUrl = candidateUrls[i];
+        console.log('📥 Attempt ' + (i + 1) + '/' + candidateUrls.length + ' fetching:', imageUrl);
 
-        const base64Image = imageBuffer.toString('base64');
-        console.log('📥 Fetched real photo (' + fetchedMimeType + ', ' + imageBuffer.length + ' bytes) — returning directly');
+        try {
+            const fetchResponse = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: MAX_ATTEMPT_TIMEOUT,
+                maxContentLength: MAX_IMAGE_SIZE,
+                maxBodyLength: MAX_IMAGE_SIZE,
+                headers: BROWSER_HEADERS
+            });
 
-        return res.json({
-            success: true,
-            prompt: userPrompt,
-            image: `data:${fetchedMimeType};base64,${base64Image}`,
-            sourceNote: 'Real photo from web search'
-        });
-    } catch (err) {
-        console.error('📥 Failed to fetch photo, falling back to text-to-image:', err.message);
-        return fallbackToTextToImage('photo fetch failed (' + err.message + ')');
+            // Validate: status 200 + valid image content-type
+            const ct = String(fetchResponse.headers['content-type'] || '').toLowerCase();
+            const isValidImageType = ct.indexOf('image/') === 0 ||
+                ct.indexOf('jpeg') !== -1 || ct.indexOf('jpg') !== -1 ||
+                ct.indexOf('png') !== -1 || ct.indexOf('webp') !== -1 ||
+                ct.indexOf('gif') !== -1;
+
+            if (!isValidImageType) {
+                console.log('⚠️ Attempt ' + (i + 1) + ' rejected: not an image content-type (' + ct + ')');
+                continue; // try next candidate
+            }
+
+            const imageBuffer = Buffer.from(fetchResponse.data);
+            if (imageBuffer.length === 0) {
+                console.log('⚠️ Attempt ' + (i + 1) + ' rejected: empty response body');
+                continue; // try next candidate
+            }
+
+            let fetchedMimeType = 'image/jpeg';
+            if (ct.indexOf('png') !== -1) fetchedMimeType = 'image/png';
+            else if (ct.indexOf('webp') !== -1) fetchedMimeType = 'image/webp';
+            else if (ct.indexOf('gif') !== -1) fetchedMimeType = 'image/gif';
+            else if (ct.indexOf('jpeg') !== -1 || ct.indexOf('jpg') !== -1) fetchedMimeType = 'image/jpeg';
+
+            const base64Image = imageBuffer.toString('base64');
+            console.log('✅ Fetched real photo on attempt ' + (i + 1) + ' (' + fetchedMimeType + ', ' + imageBuffer.length + ' bytes) — returning directly');
+
+            return res.json({
+                success: true,
+                prompt: userPrompt,
+                image: `data:${fetchedMimeType};base64,${base64Image}`,
+                sourceNote: 'Real photo from web search'
+            });
+        } catch (err) {
+            console.log('⚠️ Attempt ' + (i + 1) + ' failed (' + err.message + ') — trying next candidate');
+            // Continue to the next candidate — do NOT fall back yet
+        }
     }
+
+    // ---- Step 4: ALL candidates failed — only now fall back to text-to-image ----
+    console.error('📥 All ' + candidateUrls.length + ' candidate photo(s) failed to fetch, falling back to text-to-image');
+    return fallbackToTextToImage('all ' + candidateUrls.length + ' photo fetch attempts failed');
 });
 
 // ============================================
