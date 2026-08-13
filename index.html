@@ -2445,6 +2445,39 @@
             document.getElementById('fileInput').click();
         }
 
+        // ---- Clipboard paste: paste images / PDFs directly into the textarea ----
+        document.getElementById('userInput').addEventListener('paste', function(e) {
+            const data = e.clipboardData;
+            if (!data) return;
+            const files = [];
+            if (data.items) {
+                for (let i = 0; i < data.items.length; i++) {
+                    if (data.items[i].kind === 'file') {
+                        const f = data.items[i].getAsFile();
+                        if (f) files.push(f);
+                    }
+                }
+            }
+            if (data.files) {
+                for (let i = 0; i < data.files.length; i++) files.push(data.files[i]);
+            }
+            if (files.length === 0) return;
+            const pasteFile = files[0]; // prioritize one type only
+            const isImage = pasteFile.type.startsWith('image/') || /\.(png|jpe?g|jpg|webp|gif)$/i.test(pasteFile.name);
+            const isPdf = pasteFile.type === 'application/pdf' || pasteFile.name.toLowerCase().endsWith('.pdf');
+            if (!isImage && !isPdf) return;
+            e.preventDefault();
+            if (isPdf) {
+                attachPdfFile(pasteFile); // reuses the exact same PDF flow as the 📎 button
+            } else {
+                resizeAndEncodeImage(pasteFile).then(function(att) {
+                    currentAttachment = att;
+                    renderAttachmentPreview();
+                    showToast('Image attached: ' + pasteFile.name, 'success');
+                }).catch(function() { showToast('Error reading pasted image', 'error'); });
+            }
+        });
+
         // ---- Resize + compress an image BEFORE it becomes an attachment ----
         // This ensures the model receives a clean, reasonably-sized image instead
         // of a huge raw photo. 1568px matches the practical sweet spot most vision
@@ -2497,6 +2530,38 @@
             });
         }
 
+        // ---- Attach a PDF by extracting its text via pdfjsLib ----
+        // Shared by both the 📎 file-picker path and clipboard-paste path, so the
+        // exact same flow is reused (toasts, attachment type, preview card).
+        function attachPdfFile(file) {
+            showToast('Reading PDF: ' + file.name + '...', 'info');
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                try {
+                    const typedArray = new Uint8Array(event.target.result);
+                    const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+                    let fullText = '';
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        fullText += textContent.items.map(function(item) { return item.str; }).join(' ') + '\n';
+                    }
+                    currentAttachment = {
+                        type: 'pdf',
+                        data: fullText,
+                        name: file.name,
+                        preview: null
+                    };
+                    renderAttachmentPreview();
+                    showToast('PDF attached: ' + file.name + ' (' + pdf.numPages + ' pages)', 'success');
+                } catch (err) {
+                    showToast('Error reading PDF: ' + err.message, 'error');
+                }
+            };
+            reader.onerror = function() { showToast('Error reading PDF', 'error'); };
+            reader.readAsArrayBuffer(file);
+        }
+
         async function handleFileSelect(e) {
             const files = Array.from(e.target.files);
             if (!files.length) return;
@@ -2515,32 +2580,7 @@
                         showToast('Error reading image', 'error');
                     }
                 } else if (isPdf) {
-                    showToast('Reading PDF: ' + file.name + '...', 'info');
-                    const reader = new FileReader();
-                    reader.onload = async function(event) {
-                        try {
-                            const typedArray = new Uint8Array(event.target.result);
-                            const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
-                            let fullText = '';
-                            for (let i = 1; i <= pdf.numPages; i++) {
-                                const page = await pdf.getPage(i);
-                                const textContent = await page.getTextContent();
-                                fullText += textContent.items.map(function(item) { return item.str; }).join(' ') + '\n';
-                            }
-                            currentAttachment = {
-                                type: 'pdf',
-                                data: fullText,
-                                name: file.name,
-                                preview: null
-                            };
-                            renderAttachmentPreview();
-                            showToast('PDF attached: ' + file.name + ' (' + pdf.numPages + ' pages)', 'success');
-                        } catch (err) {
-                            showToast('Error reading PDF: ' + err.message, 'error');
-                        }
-                    };
-                    reader.onerror = function() { showToast('Error reading PDF', 'error'); };
-                    reader.readAsArrayBuffer(file);
+                    attachPdfFile(file);
                 } else {
                     showToast('Unsupported file: ' + file.name, 'error');
                 }
