@@ -753,21 +753,68 @@ app.post('/api/search-reviews', createSerperSearchRoute('reviews', function(data
 // ============================================
 // LENS SEARCH API (Serper lens endpoint — image search)
 // ============================================
-// Serper's lens endpoint accepts { q: "text query" } for text-based image
-// search (the same shape as all other Serper endpoints), or { imageUrl: "..." }
-// / { image: "base64..." } for image-based search. Since the slash command
-// takes a text query, we use the { q: query } form.
-app.post('/api/search-lens', createSerperSearchRoute('lens', function(data) {
-  return (data.images || []).slice(0, 5).map(function(item) {
-    return {
-      title: item.title || 'Untitled',
-      link: item.link || '#',
-      snippet: item.snippet || '',
-      thumbnail: item.imageUrl || null,
-      source: item.source || ''
-    };
-  });
-}));
+// Serper's lens endpoint accepts:
+//   { q: "text query" }        — text-based image search
+//   { imageUrl: "..." }        — search by a publicly accessible image URL
+//   { image: "base64..." }     — search by a base64-encoded image
+// The frontend sends the attached image as base64 when the user types /lens
+// with an image attached, or falls back to a text query if no image is present.
+app.post('/api/search-lens', async (req, res) => {
+  const { query, image, imageUrl } = req.body;
+
+  if (!query && !image && !imageUrl) {
+    return res.status(400).json({ success: false, error: 'Query or image is required' });
+  }
+
+  try {
+    if (!process.env.SERPER_API_KEY) {
+      throw new Error('SERPER_API_KEY is not configured');
+    }
+
+    // Build the request body based on what was provided
+    const body = {};
+    if (image) {
+      // Strip any data:image/...;base64, prefix if present (defensive)
+      const commaIndex = image.indexOf(',');
+      body.image = image.startsWith('data:') && commaIndex !== -1
+        ? image.slice(commaIndex + 1)
+        : image;
+    } else if (imageUrl) {
+      body.imageUrl = imageUrl;
+    } else {
+      body.q = query.trim();
+    }
+
+    const searchResponse = await fetch('https://google.serper.dev/lens', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': process.env.SERPER_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!searchResponse.ok) {
+      throw new Error('Serper lens search failed with status ' + searchResponse.status);
+    }
+
+    const data = await searchResponse.json();
+    const results = (data.images || []).slice(0, 5).map(function(item) {
+      return {
+        title: item.title || 'Untitled',
+        link: item.link || '#',
+        snippet: item.snippet || '',
+        thumbnail: item.imageUrl || null,
+        source: item.source || ''
+      };
+    });
+
+    res.json({ success: true, query: query || 'image search', results });
+  } catch (error) {
+    console.error('Serper lens search error:', error.message);
+    res.status(500).json({ success: false, error: 'lens search failed', details: error.message });
+  }
+});
 
 // ============================================
 // WEBPAGE SEARCH API (Serper webpage endpoint)

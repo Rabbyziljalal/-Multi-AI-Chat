@@ -3121,12 +3121,35 @@ async function loadChats() {
         // Sets the textarea value to the command prefix (e.g. "/video "), focuses
         // the textarea, and places the cursor at the end — ready for the user to
         // type their query. Does NOT auto-send.
+        // Also sets a command-specific placeholder hint so users know what kind
+        // of input to type (keywords/topics, not full sentences).
         function insertCommand(prefix) {
             const input = document.getElementById('userInput');
             input.value = prefix;
             input.focus();
             input.setSelectionRange(prefix.length, prefix.length);
             autoResize(input);
+
+            // Command-specific placeholder hints
+            const placeholderHints = {
+                '/imagine ': 'e.g. a sunset over the ocean, cyberpunk city at night',
+                '/photo ': 'e.g. a red sports car, a golden retriever puppy',
+                '/video ': 'e.g. machine learning tutorial, latest movie trailer',
+                '/news ': 'e.g. technology, sports, world news',
+                '/shopping ': 'e.g. wireless headphones, running shoes',
+                '/places ': 'e.g. coffee shops near me, best restaurants in Dhaka',
+                '/maps ': 'e.g. hospitals in New York, gas stations nearby',
+                '/scholar ': 'e.g. machine learning neural networks, quantum computing',
+                '/reviews ': 'e.g. iPhone 15, Samsung Galaxy S24',
+                '/lens ': 'attach an image first, then type /lens to find similar images',
+                '/webpage ': 'e.g. example.com, a website URL to analyze',
+                '/autocomplete ': 'e.g. how to make, best way to',
+                '/patents ': 'e.g. solar panel technology, battery innovation'
+            };
+            const hint = placeholderHints[prefix];
+            if (hint) {
+                input.placeholder = hint;
+            }
         }
 
         // ---- Stable, unique ID generator — call ONCE per message at creation time ----
@@ -3197,9 +3220,25 @@ async function loadChats() {
                 return; // skip the normal chat send flow entirely
             }
 
+            // NEW: handle /lens command — image-based search via Serper Lens
+            // Requires an attached image. Sends the image base64 to the backend.
+            if (text.toLowerCase().startsWith('/lens')) {
+                const lensQuery = text.slice('/lens'.length).trim();
+                if (!attachment || attachment.type !== 'image') {
+                    showToast('Please attach an image first, then type /lens to search for similar images.', 'error');
+                    return;
+                }
+                if (overrideText === undefined) {
+                    input.value = '';
+                    input.style.height = 'auto';
+                }
+                await handleLensCommand(lensQuery, attachment);
+                return; // skip the normal chat send flow entirely
+            }
+
             // NEW: handle all generic Serper search commands (/news, /shopping, /places,
-            // /maps, /scholar, /reviews, /lens, /webpage, /autocomplete, /patents)
-            const serperCommandMatch = text.toLowerCase().match(/^\/(news|shopping|places|maps|scholar|reviews|lens|webpage|autocomplete|patents)\s+(.+)$/);
+            // /maps, /scholar, /reviews, /webpage, /autocomplete, /patents)
+            const serperCommandMatch = text.toLowerCase().match(/^\/(news|shopping|places|maps|scholar|reviews|webpage|autocomplete|patents)\s+(.+)$/);
             if (serperCommandMatch) {
                 const command = serperCommandMatch[1];
                 const query = serperCommandMatch[2].trim();
@@ -3840,6 +3879,115 @@ async function loadChats() {
             } catch (err) {
                 contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
                 showToast(meta.label + ' search error: ' + err.message, 'error');
+            } finally {
+                scrollToBottom();
+            }
+        }
+
+        // ---- /lens command: search for visually similar images via Serper Lens ----
+        // Requires an attached image. Sends the image base64 to the backend.
+        async function handleLensCommand(query, attachment) {
+            if (!currentChatId || !chats[currentChatId]) {
+                const id = 'chat_' + Date.now();
+                chats[id] = { id: id, title: 'New Chat', messages: [], created: Date.now() };
+                currentChatId = id;
+                saveChats();
+                renderChatList();
+            }
+
+            // Show the user's /lens request as a normal user message bubble
+            const userDisplayText = '🔎 /lens' + (query ? ' ' + query : '');
+            const userMsg = {
+                id: generateMessageId(),
+                role: 'user',
+                content: userDisplayText,
+                attachment: {
+                    type: 'image',
+                    preview: attachment.preview,
+                    name: attachment.name,
+                    data: attachment.data,
+                    mimeType: attachment.mimeType
+                },
+                timestamp: Date.now()
+            };
+            chats[currentChatId].messages.push(userMsg);
+
+            if (chats[currentChatId].messages.length === 1) {
+                const titleText = '🔎 Lens search';
+                chats[currentChatId].title = titleText.slice(0, 30);
+                renderChatList();
+            }
+
+            appendMessage('user', userDisplayText, userMsg.attachment, true, userMsg);
+            saveChats();
+
+            // Show a loading placeholder while results load
+            const botMsg = appendMessage('bot', '', null);
+            const contentDiv = botMsg.querySelector('.message-content');
+            contentDiv.innerHTML = '<span style="color:var(--text-secondary)"><span class="chat-loading-spinner"></span> Searching for similar images...</span>';
+
+            try {
+                const response = await fetchWithTimeout(backendUrl + '/api/search-lens', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query || '', image: attachment.data })
+                }, 20000);
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Lens search failed');
+                }
+
+                const results = data.results || [];
+                if (results.length === 0) {
+                    contentDiv.innerHTML = '<span style="color:var(--text-secondary)">No similar images found. Try a different image.</span>';
+                } else {
+                    // Render results using the search-results visual style
+                    let html = '<div class="search-results">';
+                    html += '<h4>🔎 Similar Images Found:</h4>';
+
+                    results.forEach(function(item, index) {
+                        html += '<div class="search-result-item">';
+                        if (item.thumbnail) {
+                            html += '<img src="' + escapeHtml(item.thumbnail) + '" alt="Thumbnail" style="width:80px; height:auto; border-radius:6px; float:right; margin-left:10px;">';
+                        }
+                        if (item.link) {
+                            html += '<a href="' + escapeHtml(item.link) + '" target="_blank">' + (index + 1) + '. ' + escapeHtml(item.title) + '</a>';
+                        } else {
+                            html += '<strong>' + (index + 1) + '. ' + escapeHtml(item.title) + '</strong>';
+                        }
+
+                        const detailLines = [];
+                        if (item.snippet) detailLines.push(item.snippet);
+                        if (item.source) detailLines.push('Source: ' + item.source);
+
+                        if (detailLines.length > 0) {
+                            html += '<p>' + detailLines.map(function(l) { return escapeHtml(l); }).join('<br>') + '</p>';
+                        }
+                        html += '</div>';
+                    });
+                    html += '</div>';
+
+                    // Build the persisted message content as plain text (for history)
+                    const persistedText = results.map(function(item, i) {
+                        const parts = [item.title];
+                        if (item.snippet) parts.push(item.snippet);
+                        if (item.link) parts.push(item.link);
+                        return (i + 1) + '. ' + parts.join(' — ');
+                    }).join('\n');
+
+                    contentDiv.innerHTML = html;
+
+                    // Save this as an assistant message so results survive page refresh
+                    chats[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: '🔎 Similar images found:\n' + persistedText
+                    });
+                    saveChats();
+                }
+            } catch (err) {
+                contentDiv.innerHTML = '<span style="color:var(--error)">Error: ' + escapeHtml(err.message) + '</span>';
+                showToast('Lens search error: ' + err.message, 'error');
             } finally {
                 scrollToBottom();
             }
