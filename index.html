@@ -802,6 +802,17 @@
         .message-content h1 { font-size: 1.3rem; }
         .message-content h2 { font-size: 1.15rem; }
         .message-content h3 { font-size: 1rem; }
+        .chat-loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-strong);
+            border-top-color: var(--cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
         .typing-indicator {
             display: flex;
             gap: 5px;
@@ -2372,6 +2383,23 @@
             showWelcome();
         }
 
+        // ---- Fetch wrapper with a timeout ----
+        // If the backend doesn't respond within the window (default 15s), the request
+        // is aborted and throws — the caller can show a clear error instead of leaving
+        // the UI in an ambiguous stuck state.
+        async function fetchWithTimeout(url, options, timeoutMs) {
+            const controller = new AbortController();
+            const timeout = setTimeout(function() { controller.abort(); }, timeoutMs || 15000);
+            try {
+                const response = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+                clearTimeout(timeout);
+                return response;
+            } catch (err) {
+                clearTimeout(timeout);
+                throw err;
+            }
+        }
+
         async function checkConnection() {
             const statusEl = document.getElementById('connStatus');
             const dotEl = document.getElementById('connDot');
@@ -2381,11 +2409,19 @@
             dotEl.className = 'conn-dot connecting';
             textEl.textContent = 'Connecting...';
 
+            // Show a "waking up server..." toast if the ping takes more than ~3 seconds.
+            // Render free tier can take 30-50s to cold-start after inactivity, so this
+            // helps the user understand *why* things feel slow instead of assuming the
+            // app is broken.
+            let wakeToastShown = false;
+            const wakeToastTimer = setTimeout(function() {
+                wakeToastShown = true;
+                showToast('⏳ Waking up server... (Render free tier can take 30-50s on first load)', 'info');
+            }, 3000);
+
             try {
-                const controller = new AbortController();
-                const timeout = setTimeout(function() { controller.abort(); }, 5000);
-                const res = await fetch(backendUrl + '/', { signal: controller.signal });
-                clearTimeout(timeout);
+                const res = await fetchWithTimeout(backendUrl + '/', {}, 5000);
+                clearTimeout(wakeToastTimer);
 
                 if (res.ok) {
                     statusEl.className = 'connection-status connected';
@@ -2395,9 +2431,13 @@
                     throw new Error('Server error');
                 }
             } catch (e) {
+                clearTimeout(wakeToastTimer);
                 statusEl.className = 'connection-status disconnected';
                 dotEl.className = 'conn-dot disconnected';
                 textEl.textContent = 'Offline';
+                if (wakeToastShown) {
+                    showToast('Server is still waking up — retrying...', 'warning');
+                }
             }
         }
 
@@ -2572,18 +2612,25 @@
                 return;
             }
 
+            // ---- Show an immediate loading state so the UI never appears frozen ----
+            // Render free tier can take 30-50s to cold-start, so give instant visual
+            // feedback the moment a chat is clicked, before the async fetch completes.
+            const msgs = document.getElementById('messages');
+            const welcome = document.getElementById('welcomeScreen');
+            welcome.style.display = 'none';
+            msgs.style.display = 'flex';
+            msgs.innerHTML = '<div class="message system"><div class="message-content"><span class="chat-loading-spinner"></span> Loading chat...</div></div>';
+
             try {
-                const response = await fetch(backendUrl + '/api/chats/' + id, {
+                const response = await fetchWithTimeout(backendUrl + '/api/chats/' + id, {
                     headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
-                });
+                }, 20000);
                 const data = await response.json();
                 if (data.success) {
                     chats[id] = data.chat;
                     currentChatId = id;
                     renderChatList();
                     const chat = data.chat;
-                    const msgs = document.getElementById('messages');
-                    const welcome = document.getElementById('welcomeScreen');
                     if (chat.messages.length === 0) {
                         showWelcome();
                     } else {
@@ -2596,11 +2643,13 @@
                     }
                     removeAttachment();
                 } else {
+                    msgs.innerHTML = '<div class="message system"><div class="message-content">Could not load that chat</div></div>';
                     showToast('Could not load that chat', 'error');
                 }
             } catch (err) {
                 console.error('Failed to load chat:', err);
-                showToast('Could not load that chat', 'error');
+                msgs.innerHTML = '<div class="message system"><div class="message-content">Failed to load chat — check your connection and try again</div></div>';
+                showToast('Could not load that chat — check your connection', 'error');
             }
         }
 
@@ -2617,10 +2666,10 @@
             if (!confirm('Delete this chat?')) return;
 
             try {
-                const response = await fetch(backendUrl + '/api/chats/' + id, {
+                const response = await fetchWithTimeout(backendUrl + '/api/chats/' + id, {
                     method: 'DELETE',
                     headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
-                });
+                }, 15000);
                 const data = await response.json();
                 if (data.success) {
                     delete chats[id];
@@ -2779,9 +2828,9 @@
         // ---- Load all chats for the logged-in user from the server. ----
         // Only fetches summaries (id, title, updatedAt) for the sidebar —
         // full message content loads on-demand when a chat is opened.
-        async function loadChats() {
+async function loadChats() {
             try {
-                const response = await fetch(backendUrl + '/api/chats', {
+                const response = await fetchWithTimeout(backendUrl + '/api/chats', {
                     headers: { 'Authorization': 'Bearer ' + localStorage.getItem('authToken') }
                 });
                 const data = await response.json();
