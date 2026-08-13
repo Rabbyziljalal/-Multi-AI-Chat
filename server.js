@@ -875,16 +875,56 @@ app.post('/api/search-lens', async (req, res) => {
 // ============================================
 // The webpage endpoint returns a SINGLE object (not an array), so we wrap
 // it in a one-element array to keep the frontend rendering uniform.
-app.post('/api/search-webpage', createSerperSearchRoute('webpage', function(data) {
-  if (!data || !data.title) return [];
-  return [{
-    title: data.title || 'Untitled',
-    link: data.link || '#',
-    snippet: data.description || '',
-    thumbnail: data.imageUrl || null,
-    source: data.siteName || ''
-  }];
-}));
+// ============================================
+// WEBPAGE SCRAPE API (Serper scrape endpoint)
+// ============================================
+// Serper's webpage-scraping feature uses a completely separate domain from the
+// regular SERP endpoints. It POSTs to https://scrape.serper.dev with body
+// { url, includeMarkdown: true } and the same X-API-KEY header.
+//
+// This is NOT at google.serper.dev/webpage — that endpoint doesn't exist.
+// The correct URL is: https://scrape.serper.dev
+//
+// NOTE: Images and other media embedded in the scraped page may not be included
+// in the returned text. This feature is for extracting the textual content of a
+// webpage, not for full rendering. See the ethical notice below.
+app.post('/api/search-webpage', async (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return res.status(400).json({ error: 'A URL is required' });
+    }
+
+    let targetUrl = url.trim();
+
+    // Auto-add https:// if the user typed a bare domain like "google.com"
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
+    }
+
+    const serperResponse = await fetch('https://scrape.serper.dev', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': process.env.SERPER_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url: targetUrl, includeMarkdown: true })
+    });
+
+    if (!serperResponse.ok) {
+      const errText = await serperResponse.text();
+      console.error('Serper webpage scrape error:', serperResponse.status, errText);
+      throw new Error('Webpage scrape failed with status ' + serperResponse.status);
+    }
+
+    const data = await serperResponse.json();
+    res.json({ success: true, data: data });
+  } catch (err) {
+    console.error('Webpage scrape error:', err.message);
+    res.status(500).json({ error: 'Could not fetch that webpage. Please check the URL and try again.' });
+  }
+});
 
 // ============================================
 // AUTOCOMPLETE SEARCH API (Serper autocomplete endpoint)
