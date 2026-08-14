@@ -722,7 +722,20 @@ app.post('/api/search-maps', createSerperSearchRoute('maps', function(data) {
 // SCHOLAR SEARCH API (Serper scholar endpoint)
 // ============================================
 app.post('/api/search-scholar', createSerperSearchRoute('scholar', function(data) {
-  return (data.scholar || []).slice(0, 5).map(function(item) {
+  // TEMP DEBUG: log the raw response structure so we can confirm the actual
+  // field name Serper returns for the scholar endpoint. Truncated to 500 chars
+  // to avoid dumping full responses (which previously caused a memory crash).
+  console.log('Scholar raw response keys:', Object.keys(data));
+  console.log('Scholar raw response sample:', JSON.stringify(data).slice(0, 500));
+
+  // Serper's scholar endpoint may return results under "scholar" OR reuse the
+  // generic "organic" field name (as it does for several endpoint types).
+  // Defensively check both so we never return "No results" when data exists.
+  const rawResults = (data.scholar && data.scholar.length > 0)
+    ? data.scholar
+    : (data.organic || []);
+
+  const results = rawResults.slice(0, 5).map(function(item) {
     return {
       title: item.title || 'Untitled',
       link: item.link || '#',
@@ -733,6 +746,9 @@ app.post('/api/search-scholar', createSerperSearchRoute('scholar', function(data
       pdfUrl: item.pdfUrl || null
     };
   });
+
+  console.log('Scholar results found:', results.length);
+  return results;
 }));
 
 // ============================================
