@@ -68,6 +68,24 @@ const API_KEYS = {
   openrouter: process.env.OPENROUTER_API_KEY,   // NEW
 };
 
+// ---- App-awareness context ----
+// A short, accurate summary of Multi-AI's own features, injected into the system
+// message of every AI provider call. This lets the model answer questions like
+// "what can this app do?" or "how do I generate an image?" accurately based on
+// the app's real capabilities instead of guessing. Kept concise on purpose so it
+// doesn't meaningfully bloat token usage on every request.
+const APP_FEATURES_CONTEXT =
+  'You are the assistant inside the Multi-AI app. Here is what this app can do, in case the user asks:\n' +
+  '- Multi-provider AI chat: Gemini, Groq, BigModel, Cerebras, OpenRouter, and SambaNova, with automatic fallback if one provider fails.\n' +
+  '- Image generation: type /imagine (or use the pill buttons) for pure AI-generated images, or /photo to search for and use a real photo from the web.\n' +
+  '- Image editing: upload a photo and describe the changes you want.\n' +
+  '- Upload and analyze PDFs and images.\n' +
+  '- Web search toggle for up-to-date answers.\n' +
+  '- Quick search commands via the pills: /video, /news, /shopping, /places, /maps, /scholar, /reviews, /lens, /webpage, /autocomplete, /patents.\n' +
+  '- Persistent per-account memory (the user can ask you to remember things).\n' +
+  '- Multiple themes: Dark, Black, Golden, Deep Blue, and Light.\n' +
+  '- Voice input.';
+
 // ---- Defensive helper: strip any "data:image/...;base64," prefix from a base64 string ----
 // Some older frontend code paths may still send the full data URL prefix. Providers
 // expect clean base64, so strip it defensively before sending to any vision model.
@@ -1175,6 +1193,11 @@ app.post('/chat', requireAuth, async (req, res) => {
     `confidently using that prior context — do not say you don't have access to it ` +
     `or aren't sure, since it is right here in the conversation history.`
   );
+
+  // App-awareness: always tell the model what Multi-AI itself can do, so it can
+  // answer questions about the app's features accurately instead of guessing.
+  // Purely additive — does not change how memory or web search are injected.
+  systemParts.push(APP_FEATURES_CONTEXT);
 
   // If an explicit save just happened, let the AI acknowledge it in its response
   if (justSavedFact) {
