@@ -467,21 +467,31 @@ async function searchTavily(query) {
 // ============================================
 // SERPER SEARCH API (fallback for Tavily)
 // ============================================
-async function searchSerper(query) {
-  const response = await fetch('https://google.serper.dev/search', {
-    method: 'POST',
-    headers: {
-      'X-API-KEY': process.env.SERPER_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ q: query })
-  });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Serper search failed');
+// ---- Serper call helper with multi-key fallback ----
+// Tries SERPER_API_KEY first, then SERPER_API_KEY_1 if the first fails.
+// Axios throws on non-2xx, so the returned value is already parsed JSON.
+async function callSerper(url, body) {
+  const keys = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_1].filter(Boolean);
+  let lastError;
+  for (const key of keys) {
+    try {
+      const response = await axios.post(url, body, {
+        headers: { 'X-API-KEY': key, 'Content-Type': 'application/json' },
+        timeout: 15000
+      });
+      console.log(`Serper request succeeded via key ending in ...${key.slice(-4)}`);
+      return response.data;
+    } catch (err) {
+      console.log(`Serper key ending in ...${key.slice(-4)} failed:`, err.response ? err.response.status : err.message);
+      lastError = err;
+    }
   }
+  throw lastError || new Error('No Serper API keys configured');
+}
+
+async function searchSerper(query) {
+  const data = await callSerper('https://google.serper.dev/search', { q: query });
 
   // Normalize Serper's organic results to match Tavily's format
   const organic = data.organic || [];
@@ -561,20 +571,7 @@ app.post('/api/search-video', async (req, res) => {
       throw new Error('SERPER_API_KEY is not configured');
     }
 
-    const searchResponse = await fetch('https://google.serper.dev/videos', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ q: query.trim() })
-    });
-
-    if (!searchResponse.ok) {
-      throw new Error('Serper video search failed with status ' + searchResponse.status);
-    }
-
-    const data = await searchResponse.json();
+    const data = await callSerper('https://google.serper.dev/videos', { q: query.trim() });
     const videos = (data.videos || []).slice(0, 5);
 
     if (videos.length === 0) {
@@ -609,20 +606,7 @@ async function serperSearch(endpoint, query) {
     throw new Error('SERPER_API_KEY is not configured');
   }
 
-  const searchResponse = await fetch('https://google.serper.dev/' + endpoint, {
-    method: 'POST',
-    headers: {
-      'X-API-KEY': process.env.SERPER_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ q: query.trim() })
-  });
-
-  if (!searchResponse.ok) {
-    throw new Error('Serper ' + endpoint + ' search failed with status ' + searchResponse.status);
-  }
-
-  return searchResponse.json();
+  return callSerper('https://google.serper.dev/' + endpoint, { q: query.trim() });
 }
 
 // ---- Generic route factory: builds a /api/search-<endpoint> route that
@@ -822,22 +806,7 @@ app.post('/api/search-lens', async (req, res) => {
       body.q = query.trim();
     }
 
-    const searchResponse = await fetch('https://google.serper.dev/lens', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!searchResponse.ok) {
-      const errText = await searchResponse.text();
-      console.error('Serper lens search error:', searchResponse.status, errText);
-      throw new Error('Serper lens search failed with status ' + searchResponse.status);
-    }
-
-    const data = await searchResponse.json();
+    const data = await callSerper('https://google.serper.dev/lens', body);
     console.log('RAW Serper lens response:', JSON.stringify(data, null, 2)); // TEMPORARY — remove after confirming the correct field
 
     // Defensive extraction: try the most likely field names in order,
@@ -903,22 +872,7 @@ app.post('/api/search-webpage', async (req, res) => {
       targetUrl = 'https://' + targetUrl;
     }
 
-    const serperResponse = await fetch('https://scrape.serper.dev', {
-      method: 'POST',
-      headers: {
-        'X-API-KEY': process.env.SERPER_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ url: targetUrl, includeMarkdown: true })
-    });
-
-    if (!serperResponse.ok) {
-      const errText = await serperResponse.text();
-      console.error('Serper webpage scrape error:', serperResponse.status, errText);
-      throw new Error('Webpage scrape failed with status ' + serperResponse.status);
-    }
-
-    const data = await serperResponse.json();
+    const data = await callSerper('https://scrape.serper.dev', { url: targetUrl, includeMarkdown: true });
     res.json({ success: true, data: data });
   } catch (err) {
     console.error('Webpage scrape error:', err.message);
@@ -1652,23 +1606,10 @@ app.post('/api/generate-image-from-search', async (req, res) => {
             throw new Error('SERPER_API_KEY is not configured');
         }
 
-        const searchResponse = await fetch('https://google.serper.dev/images', {
-            method: 'POST',
-            headers: {
-                'X-API-KEY': process.env.SERPER_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                q: searchQuery,
-                num: 10  // request more results so we have candidates to try in order
-            })
+        const searchData = await callSerper('https://google.serper.dev/images', {
+            q: searchQuery,
+            num: 10  // request more results so we have candidates to try in order
         });
-
-        if (!searchResponse.ok) {
-            throw new Error('Serper image search failed with status ' + searchResponse.status);
-        }
-
-        const searchData = await searchResponse.json();
         const results = searchData.images || [];
 
         // Collect ALL candidate URLs (prefer larger images first, but keep every
