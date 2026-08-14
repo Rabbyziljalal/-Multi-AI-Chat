@@ -385,6 +385,19 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .welcome-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .welcome-wordmark {
+            font-size: 0.9rem;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            opacity: 0.95;
+        }
         .welcome-logo { margin-bottom: 4px; }
         .welcome-logo svg { filter: drop-shadow(0 0 24px rgba(0,212,255,0.2)); }
         .welcome-screen h1 {
@@ -1917,6 +1930,7 @@
             .quick-actions { grid-template-columns: 1fr; }
             .welcome-screen h1 { font-size: 1.8rem; }
             .welcome-screen .subtitle { font-size: 0.95rem; padding: 0 16px; }
+            .welcome-wordmark { font-size: 0.82rem; letter-spacing: 0.12em; }
 
             /* Settings modal fits on phone */
             .settings-modal {
@@ -2107,7 +2121,9 @@
 
         <div class="chat-container" id="chatContainer">
             <div class="welcome-screen" id="welcomeScreen">
-                <div class="welcome-logo">
+                <div class="welcome-brand">
+                    <span class="welcome-wordmark gradient-text">Multi-AI</span>
+                    <div class="welcome-logo">
                     <svg width="120" height="120" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 20px rgba(0,212,255,0.35)) drop-shadow(0 0 40px rgba(123,47,247,0.2));">
                         <defs>
                             <linearGradient id="wGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -2144,6 +2160,7 @@
                         <line x1="58" y1="109" x2="76" y2="96" stroke="#ff2d92" stroke-width="1.5" opacity="0.6"/>
                         <line x1="122" y1="109" x2="104" y2="96" stroke="#00d4ff" stroke-width="1.5" opacity="0.6"/>
                     </svg>
+                    </div>
                 </div>
                 <h1 id="welcomeHeading">Multi-AI Chatbot</h1>
                 <p class="subtitle">Chat with multiple AI models in one place. Upload images or PDFs to analyze with AI. All powered by your secure backend server.</p>
