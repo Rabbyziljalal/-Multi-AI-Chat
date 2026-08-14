@@ -807,7 +807,6 @@ app.post('/api/search-lens', async (req, res) => {
     }
 
     const data = await callSerper('https://google.serper.dev/lens', body);
-    console.log('RAW Serper lens response:', JSON.stringify(data, null, 2)); // TEMPORARY — remove after confirming the correct field
 
     // Defensive extraction: try the most likely field names in order,
     // use whichever one actually has data.
@@ -1188,7 +1187,7 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   // Inject this user's saved memory
   const memoryFacts = await getMemory(req.username);
-  console.log('Memory fetched for', req.username, ':', memoryFacts);
+  console.log('Memory fetched for', req.username, ':', memoryFacts.length, 'fact(s)');
   if (memoryFacts.length > 0) {
     // Use stronger, more directive language to ensure the model actually uses the memory
     // IMPORTANT: Warn the model that facts may be about other people/things, not necessarily the user
